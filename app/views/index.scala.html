@@ -1,20 +1,54 @@
-@*
- * This template takes a two arguments, a String containing a
- * message to display and an AssetsFinder to locate static assets.
- *@
-@(message: String)(implicit assetsFinder: AssetsFinder)
+@()(implicit assetsFinder: AssetsFinder,request: RequestHeader,session: play.api.mvc.Session)
 
-@*
- * Call the `main` template with two arguments. The first
- * argument is a `String` with the title of the page, the second
- * argument is an `Html` object containing the body of the page.
- *@
-@main("Welcome to Play", assetsFinder) {
 
-    @*
-     * Get an `Html` object by calling the built-in Play welcome
-     * template and passing a `String` message.
-     *@
-    <h4>@message</h4>
+@main("LunAdmin", assetsFinder,session) {
+    @if(session.get("mail").isEmpty){
+    <div class="container">
+        <div id="loginbox" style="margin-top:50px;" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
+            <div class="panel panel-info" >
+                <div class="panel-heading">
+                    <div class="panel-title">Sign In</div>
+                </div>
+
+                <div style="padding-top:30px" class="panel-body" >
+
+                    <form method="post" action="@routes.HomeController.userLogin()" class="form-horizontal" >
+                        @helper.CSRF.formField
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+                            <input id="login-username" type="text" class="form-control" name="mail" value="" placeholder="email">
+                        </div>
+
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+                            <input id="login-password" type="password" class="form-control" name="password" placeholder="password">
+                        </div>
+
+                        <div style="margin-top:10px" class="form-group">
+                                <!-- Button -->
+                            <button type="submit" class="btn btn-primary">Login</button>
+
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        </div>
+    }else{
+        <div class="container">
+
+            <a href="@routes.HomeController.userLogout"><button class="btn btn-primary">Logout</button></a>
+
+        </div>
+    }
+
+    <div class="container">
+
+        <a href="@routes.HomeController.displayTasks"><button class="btn btn-primary">List Of Tasks</button></a>
+
+
+    </div>
 
 }

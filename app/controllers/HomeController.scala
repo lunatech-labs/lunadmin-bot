@@ -3,33 +3,69 @@ package controllers
 import javax.inject._
 import java.text.SimpleDateFormat
 import java.util.Calendar
-
+import akka.http.scaladsl.model.headers.Date
+import models.{LoginForm, User, UserForm}
 import play.Logger
+import play.api.data.Form
+import play.api.data.Forms.{email, mapping, number, optional, text}
 import play.api.mvc._
 
-/**
- * This controller creates an `Action` to handle HTTP requests to the
- * application's home page.
- */
+
 @Singleton
-class HomeController @Inject()(cc: ControllerComponents) (implicit assetsFinder: AssetsFinder)
-  extends AbstractController(cc) {
+class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder)
+  extends AbstractController(s.controllerComponent) {
 
-  /**
-   * Create an Action to render an HTML page with a welcome message.
-   * The configuration in the `routes` file means that this method
-   * will be called when the application receives a `GET` request with
-   * a path of `/`.
-   */
-  def index = Action {
-    val today = Calendar.getInstance.getTime
+  def index = Action { implicit request: Request[AnyContent] =>
+    Ok(views.html.index())
+  }
 
-    // create the date/time formatters
-    val minuteFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss")
+  def userSignUp() = Action { implicit request: Request[AnyContent] =>
+    val userForm = Form(
+      mapping(
+        "mail" -> email,
+        "password" -> text,
+        "firstName" -> text,
+        "lastName" -> text
+      )(UserForm.apply)(UserForm.unapply)
+    )
+    userForm.bindFromRequest().fold(
+      formWithErrors => {
+        Ok("bad form !")
+      },
+      userData => {
+        Ok(views.html.index())
+      }
+    )
+  }
 
-    val currentMinute = minuteFormat.format(today)
-    Logger.info(s"-- $currentMinute --")
-    Ok(views.html.index("Your new application is ready."))
+  def userLogin() = Action { implicit request: Request[AnyContent] =>
+    val loginForm = Form(
+      mapping(
+        "mail" -> email,
+        "password" -> text
+      )(LoginForm.apply)(LoginForm.unapply)
+    )
+    loginForm.bindFromRequest().fold(
+      formWithErrors => {
+        Ok("bad form !")
+      },
+      userData => {
+        Redirect(routes.HomeController.index()).withSession("mail" -> userData.mail)
+      }
+    )
+  }
+
+  def userLogout() = Action {
+    Redirect(routes.HomeController.index()).withNewSession
+  }
+
+  def displayTasks() = Action { implicit request: Request[AnyContent] =>
+    Ok(views.html.displayTasks(s.listOfTask,s.listOfUsers,s.listOfGroup))
+  }
+
+  def deleteTask(idTask : Int) = Action { implicit request: Request[AnyContent] =>
+    s.listOfTask = s.listOfTask.filter(t => t.getId() != idTask)
+    Redirect(routes.HomeController.displayTasks())
   }
 
 }
