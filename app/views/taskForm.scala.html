@@ -1,0 +1,35 @@
+
+@(listUser : List[User] , listGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,session: play.api.mvc.Session)
+
+@main("LunAdmin", assetsFinder,session) {
+    <form method="post" action="@routes.HomeController.userSignUp()">
+        @helper.CSRF.formField
+        <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" class="form-control" name="description" id="description" placeholder="Some description of a task" required>
+        </div>
+
+        <div class="form-group">
+            <label for="startDate">Start Date</label>
+            <input type="datetime-local" class="form-control" name="startDate" id="startDate" >
+        </div>
+
+        <div class="form-group">
+            <label for="endDate">End Date</label>
+            <input type="datetime-local" class="form-control" name="endDate" id="endDate" >
+        </div>
+
+        <label for="category">Select a category :</label>
+        <select class="form-control" id="category" name="category">
+            <option>meeting</option>
+            <option>into production</option>
+            <option>new arrival</option>
+            <option>Other</option>
+        </select>
+
+
+
+        <button type="submit" class="btn btn-primary">Add a task</button>
+    </form>
+
+}

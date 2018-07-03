@@ -1,47 +1,61 @@
 package controllers
 
-import java.util.Calendar
+import java.time.{ZoneId, ZonedDateTime}
 
+import reactivemongo.play.json.ImplicitBSONHandlers._
 import com.google.inject.Singleton
 import controllers.AssetsFinder
 import javax.inject.Inject
 import models._
+import play.Logger
+import play.api.Configuration
 import play.api.mvc.{AbstractController, ControllerComponents}
+import play.api.libs.json._
+import play.modules.reactivemongo.{MongoController, ReactiveMongoApi, ReactiveMongoComponents}
+import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.play.json._
+import play.modules.reactivemongo._
+import play.modules.reactivemongo.json._
+import reactivemongo.api.{Cursor, ReadPreference}
+import reactivemongo.play.json.collection.JSONCollection
+import store.{TaskDataStore, UserDataStore}
 
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class Starter @Inject()(cc: ControllerComponents) (implicit assetsFinder: AssetsFinder)
-  extends AbstractController(cc) {
+class Starter @Inject()(userDataStore : UserDataStore, taskDataStore: TaskDataStore,configuration : Configuration, cc: ControllerComponents,val reactiveMongoApi: ReactiveMongoApi)(implicit assetsFinder: AssetsFinder, ec: ExecutionContext)
+  extends AbstractController(cc) with MongoController with ReactiveMongoComponents {
 
-val controllerComponent = cc
-var listOfTask = List[Task]()
-var listOfUsers = List[User]()
-var listOfGroup = List[UserGroup]()
+  private val taskCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("taskCategory"))
+  private val taskCollectionTest = reactiveMongoApi.database.map(_.collection[JSONCollection]("task"))
+
+  private val ZONEID = configuration.underlying.getString("ZONEID")
+
+  val controllerComponent = cc
+  var listOfTask = List[Task]()
+  var listOfUsers = List[User]()
+  var listOfGroup = List[UserGroup]()
+  var listOfPaper = List[AdministrativPaper]()
+  var listOfTaskCategory = List[TaskCategory]()
+
   main()
 
   def main(): Unit ={
-    listOfGroup = listOfGroup :+ UserGroup(0,"Dev")
-    listOfGroup = listOfGroup :+ UserGroup(1,"Admin")
-    listOfGroup = listOfGroup :+ UserGroup(2,"Consultant")
-    listOfGroup = listOfGroup :+ UserGroup(3,"Dieu")
-
-    listOfTask = listOfTask :+ SinglePersonTask(0,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",0,"anniv")
-    listOfTask = listOfTask :+ SinglePersonTask(1,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",1,"anniv")
-    listOfTask = listOfTask :+ SinglePersonTask(2,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",2,"anniv")
-    listOfTask = listOfTask :+ SinglePersonTask(3,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",3,"anniv")
-
-    listOfTask = listOfTask :+ GroupedTask(4,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",listOfGroup.filter(p => p.id == 0),"anniv")
-    listOfTask = listOfTask :+ GroupedTask(5,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",listOfGroup.filter(p => p.id == 2),"anniv")
-    listOfTask = listOfTask :+ GroupedTask(6,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",listOfGroup.filter(p => p.id == 3),"anniv")
-    listOfTask = listOfTask :+ GroupedTask(7,"some description",Calendar.getInstance().getTime,Calendar.getInstance().getTime,"petit nouveau",listOfGroup,"c la fettteeeee")
+//    val query = BSONDocument(/*"group" -> BSONDocument("$exists" -> true)*/)
+//
+//    import reactivemongo.play.json.ImplicitBSONHandlers._
+//    val cursor : Future[Cursor[TaskCategory]] = taskCollection.map(f => f.find(query).cursor[TaskCategory]())
+//    val futurList : Future[List[TaskCategory]] = cursor.flatMap(_.collect[List](-1,Cursor.FailOnError[List[TaskCategory]]()))
+//
+//    futurList.map(x => Logger.info(x.toString()))
 
 
-    listOfUsers = listOfUsers :+ User("alala@hotmail.com","dedewded","douglas","mcpetitbonhomme",groupId = Some(List(0,2)),id = Some(0))
-    listOfUsers = listOfUsers :+ User("samsamsam@hotmail.com","dedewded","samanta","mcpetitbonfemme",groupId = Some(List(1,3)), id = Some(1))
-    listOfUsers = listOfUsers :+ User("partout@partout.partout","dedewded","partout","mcpartout",groupId = Some(List(0,3)),id = Some(2))
-    listOfUsers = listOfUsers :+ User("alibabalemacaron@bouafle.fr","dedewded","john","doe", id = Some(3))
+//    taskDataStore.findAllTaskDescription(0,10).map { listForTest =>
+//      Logger.info(listForTest.toString())
+//    }
+
+
   }
-
 }
 
 

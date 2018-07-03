@@ -3,8 +3,9 @@ package controllers
 import javax.inject._
 import java.text.SimpleDateFormat
 import java.util.Calendar
+
 import akka.http.scaladsl.model.headers.Date
-import models.{LoginForm, User, UserForm}
+import models.{LoginForm, User, UserForm, UserGroup}
 import play.Logger
 import play.api.data.Form
 import play.api.data.Forms.{email, mapping, number, optional, text}
@@ -66,6 +67,10 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
   def deleteTask(idTask : Int) = Action { implicit request: Request[AnyContent] =>
     s.listOfTask = s.listOfTask.filter(t => t.getId() != idTask)
     Redirect(routes.HomeController.displayTasks())
+  }
+
+  def goToAddTask() = Action { implicit request: Request[AnyContent] =>
+    Ok(views.html.taskForm(s.listOfUsers,s.listOfGroup))
   }
 
 }

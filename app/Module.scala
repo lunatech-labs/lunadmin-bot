@@ -1,6 +1,8 @@
 import com.google.inject.AbstractModule
 import java.time.Clock
+
 import controllers.Starter
+import play.api.Configuration
 import services.{ApplicationTimer, AtomicCounter, Counter}
 
 /**

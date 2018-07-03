@@ -1,17 +1,20 @@
 @(listTask : List[Task], listUser : List[User], listGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,session: play.api.mvc.Session)
 
-
 @main("LunAdmin", assetsFinder,session) {
-
+    <br>
     <div class="container">
         <h2>Task Table</h2>
-        <p>Type something in the input field to search the table :</p>
+        <div class="container">
+            <div class="row">
+            <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
+                <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+            </div>
+        </div>
         <input class="form-control" id="myInput" type="text" placeholder="Search..">
         <br>
         <table class="table table-bordered table-striped small">
             <thead>
                 <tr>
-                    <th>id</th>
                     <th>description</th>
                     <th>startDate</th>
                     <th>endDate</th>
@@ -24,7 +27,6 @@
             <tbody id="myTable">
                 @for(task <- listTask) {
                     <tr>
-                        <td>@task.getId()</td>
                         <td>@task.getDescription()</td>
                         <td>@task.getStartDate()</td>
                         <td>@task.getEndDate()</td>
@@ -32,7 +34,7 @@
                         <td>@task.getCategory()</td>
                         <td>@task.getNameById(listUser,listGroup)</td>
                         <td>@task.getAlert()</td>
-                        <td><a href="@routes.HomeController.deleteTask(task.getId())" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task with id : ' + @task.getId().toString + ' ?');">delete</a></td>
+                        <td><a href="@routes.HomeController.deleteTask(0)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task with id : ' + @task.getId().toString + ' ?');">delete</a></td>
                     </tr>
                 }
             </tbody>

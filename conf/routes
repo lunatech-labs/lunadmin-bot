@@ -10,7 +10,7 @@ POST     /login                     controllers.HomeController.userLogin
 GET      /logout                    controllers.HomeController.userLogout
 GET      /listTasks                 controllers.HomeController.displayTasks
 GET      /deleteTask/:id            controllers.HomeController.deleteTask(id : Int)
-
+GET      /addTask                   controllers.HomeController.goToAddTask
 
 GET     /count                      controllers.CountController.count
 GET     /message                    controllers.AsyncController.message
