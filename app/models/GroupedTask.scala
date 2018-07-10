@@ -9,24 +9,26 @@ import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
 
+import scala.concurrent.duration.Duration
+
 case class GroupedTask (
                          _id : String = BSONObjectID.generate().stringify,
                          description : String,
                          startDate : ZonedDateTime,
                          endDate : ZonedDateTime,
                          status : String,
-                         group : List[UserGroup],
+                         groupName : List[String],
                          category : String,
-                         alert : Option[List[ZonedDateTime]] = None,
+                         alert : List[(Long,String)],
                          `type`: TaskType = TaskType.GROUPED
 ) extends Task(_id, description, startDate, endDate, status, category, alert, TaskType.GROUPED){
 
   override def getNameById(userList : List[User], groupList : List[UserGroup]): String = {
 
-    val listOfGroupIn = groupList.filter(userG => group.contains(userG))
+    val listOfGroupIn = groupList.filter(userG => groupName.contains(userG.name))
     var listOfPeopleIn = List[User]()
-    userList.foreach(p => if(p.groupId.isDefined){
-      val listOfIntersection = p.groupId.get.intersect(listOfGroupIn.map(userG => userG._id))
+    userList.foreach(p => if(p.groupName.isDefined){
+      val listOfIntersection = p.groupName.get.intersect(listOfGroupIn.map(userG => userG._id))
       if(listOfIntersection.nonEmpty)
           listOfPeopleIn = listOfPeopleIn :+ p
     })

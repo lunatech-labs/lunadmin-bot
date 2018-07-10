@@ -1,0 +1,67 @@
+@import scala.concurrent.ExecutionContext
+@(list : List[UserDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session)
+
+
+
+@main("LunAdmin", assetsFinder,session) {
+    <br>
+    <div class="container">
+        <h2>User Table</h2>
+        <div class="container">
+            <div class="row">
+                <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
+                <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+            </div>
+        </div>
+        <input class="form-control" id="myInput" type="text" placeholder="Search..">
+        <br>
+        <table class="table table-bordered table-striped small">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Mail</th>
+                </tr>
+            </thead>
+            <tbody id="myTable">
+            @for(user <- list) {
+                <tr>
+                    <td>@user._id</td>
+                    <td>@user.firstName</td>
+                    <td>@user.lastName</td>
+                    <td>@user.mail</td>
+                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedUser(user._id)"> Details</a> &nbsp <a onclick="return confirm('Delete Task : @{user.firstName + " " + user.lastName} ');" href="@routes.HomeController.deleteUser(user._id,page,pageSize)" class="btn btn-danger btn-sm" >delete</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        <form method="post" action="@routes.HomeController.paginationDisplayUser()">
+            @helper.CSRF.formField
+            <input class="form-control-sm" type="number" onchange="this.form.submit()" value="@page" id="page" name="page">
+            View <select name="pageSize" id="pageSize" onchange="this.form.submit()">
+        @for(pgSize <- Seq(5,10,25)){
+            @if(pgSize == pageSize){
+                <option value="@pgSize" selected="selected">@pgSize</option>
+            }else{
+                <option value="@pgSize">@pgSize</option>
+            }
+        }
+        </select> tasks at a time.
+        </form>
+
+    </div>
+
+    <script>
+            $(document).ready(function(){
+                $("#myInput").on("keyup", function() {
+                    var value = $(this).val().toLowerCase();
+                    $("#myTable tr").filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                });
+            });
+    </script>
+
+}

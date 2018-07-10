@@ -1,16 +1,15 @@
 package models
 
 import java.text.SimpleDateFormat
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{Instant, ZoneId, ZonedDateTime}
 import java.util.Date
 
 import models.TaskType.TaskType
-import play.api.libs.json._
+import play.api.Logger
 import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
 import tools.DateUtils
 
-import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 
 
@@ -21,21 +20,19 @@ abstract class Task(_id: String = BSONObjectID.generate().stringify,
                     endDate: ZonedDateTime,
                     status: String,
                     category: String,
-                    alert: Option[List[ZonedDateTime]],
+                    alert: List[(Long,String)],
                     `type`: TaskType) {
 
   def getNameById(userList: List[User], groupList: List[UserGroup]): String
 
   private def getDate(date: ZonedDateTime): String = DateUtils.dateTimeFormatterUtc.format(date)
 
-  def getAlert(): String = {
-    var stringToReturn = ""
-    if (alert.isDefined) {
-      alert.get.foreach(d => stringToReturn = stringToReturn + getDate(d))
-    } else {
-      stringToReturn = stringToReturn + "No alert set up"
+  def getAlertHtmlForm(alertNumber : Long, alertSelect : String): (Long,String) ={
+    alertSelect match {
+      case "minute" => (Duration(alertNumber,"milli").toMinutes,alertSelect)
+      case "hour" =>  (Duration(alertNumber,"milli").toHours,alertSelect)
+      case "day" => (Duration(alertNumber,"milli").toDays,alertSelect)
     }
-    stringToReturn
   }
 
   def getId() = _id
@@ -44,7 +41,11 @@ abstract class Task(_id: String = BSONObjectID.generate().stringify,
 
   def getStartDate() = getDate(startDate)
 
+  def getStartDateInJavaDate() = DateUtils.dateTimeFormatterJavaUtil.format(startDate)
+
   def getEndDate() = getDate(endDate)
+
+  def getEndDateInJavaDate() = DateUtils.dateTimeFormatterJavaUtil.format(endDate)
 
   def getStatus() = status
 

@@ -1,0 +1,158 @@
+@import java.time.ZonedDateTime
+@(task : SinglePersonTask,listCategory : List[TaskCategory], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
+
+@main("LunAdmin", assetsFinder,session) {
+
+@{
+if(flash.get("failure").isDefined){
+<div class="alert alert-warning alert-dismissible">
+    <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+    <strong>Failure!</strong> Your form ain't good !
+</div>
+}else{
+<br/>
+}
+}
+<form method="post" action="@routes.HomeController.updateSingleTask(task._id)">
+    @helper.CSRF.formField
+    <div class="form-group">
+        <label for="description">Description</label>
+        <input type="text" class="form-control" name="description" id="description" value="@task.description" required>
+    </div>
+
+    <div class="form-group">
+        <label for="startDate">Start Date</label>
+        <input type="datetime-local" class="form-control" onchange="setMinOnEndDate()" name="startDate" value="@task.getStartDateInJavaDate()" id="startDate" required>
+    </div>
+
+    <div class="form-group">
+        <label for="endDate">End Date</label>
+        <input type="datetime-local" class="form-control" onchange="setMaxOnStartDate()" name="endDate" value="@task.getEndDateInJavaDate()" id="endDate" required>
+    </div>
+
+    <label for="category">Select a category :</label>
+    <select class="form-control" id="category" name="category">
+        @for(category <- listCategory) {
+            @if(category.name == task.category) {
+                <option selected="selected" >@category.name</option>
+            } else {
+                <option>@category.name</option>
+            }
+        }
+    </select>
+
+    <label for="status">Select a status :</label>
+    <select class="form-control" id="status" name="status" >
+        @for(status <- listStatus){
+            @if(status == task.status){
+                <option selected="selected" >@status</option>
+            }else{
+                <option>@status</option>
+            }
+        }
+    </select>
+
+    <label>User Concerned : </label>
+    <div id="containerTaskChoice">
+        <select id="selectSingleTask" name="selectSingleTask">
+            @for(user <- listUser) {
+                @if(user._id == task.employeeId){
+                    <option value="@user._id" selected="selected" >@user.firstName  @user.lastName</option>
+                }else{
+                    <option value="@user._id">@user.firstName  @user.lastName</option>
+                }
+            }
+        </select>
+    </div>
+
+    <div id="alertContainer">
+        <label for="alertPlus">Add an alert :</label>
+        <a onclick="createAlert(0,'minute')" id="alertPlus"><img src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+
+        @for(e <- task.alert){
+            <div id="alertSubContainer@e.hashCode()">
+                <input value="@task.getAlertHtmlForm(e._1,e._2)._1" class="form-control-sm" type="number" name="alertNumber@e.hashCode()" required>
+                <select name="alertSelect@e.hashCode()">
+                    @for(time <- Seq(("minute","minute"),("hour","heure"),("day","jour"))){
+                        @if(time._1 == e._2){
+                            <option value="@time._1" selected="selected">@time._2</option>
+                        }else{
+                            <option value="@time._1">@time._2</option>
+                        }
+                    }
+                </select>
+                <a onclick="deleteAlert(@e.hashCode())"><img width="25" height="25" src="https://t5.rbxcdn.com/845ec37cb512d8bc579362377cadea35"></a>
+            </div>
+        }
+
+
+    </div>
+
+    <button type="submit" class="btn btn-primary">Update</button>
+</form>
+
+<script>
+    var numberOfAlert = 1;
+    var alertChoices = { 0 : "minute",1 : "hour",2 : "day"};
+
+
+    function createAlert(alertNumber,alertSelect){
+        var newContainer = document.createElement("div");
+        newContainer.setAttribute("id", "alertSubContainer"+ numberOfAlert.toString());
+        document.getElementById("alertContainer").appendChild(newContainer);
+
+        var newInput = document.createElement("INPUT");
+        newInput.setAttribute("class","form-control-sm");
+        newInput.setAttribute("type","number");
+        newInput.required = true;
+        newInput.setAttribute("value",alertNumber);
+        newInput.setAttribute("name","alertNumber"+ numberOfAlert.toString());
+        newInput.setAttribute("id","alertNumber"+ numberOfAlert.toString());
+        newContainer.appendChild(newInput);
+
+        var newSelect = document.createElement("SELECT");
+        newSelect.setAttribute("name", "alertSelect" + numberOfAlert.toString());
+        newSelect.setAttribute("id", "alertSelect"+ numberOfAlert.toString());
+        newContainer.appendChild(newSelect);
+
+        var newDeleteButton = document.createElement("A");
+        newDeleteButton.setAttribute("id", "alertButton" + numberOfAlert.toString());
+        newDeleteButton.setAttribute("onClick","deleteAlert("+ numberOfAlert.toString() +")");
+        var newIcoDeleteButton = document.createElement("img");
+        newIcoDeleteButton.setAttribute("width", "25");
+        newIcoDeleteButton.setAttribute("height", "25");
+        newIcoDeleteButton.setAttribute("src","https://t5.rbxcdn.com/845ec37cb512d8bc579362377cadea35");
+        newDeleteButton.appendChild(newIcoDeleteButton);
+        newContainer.appendChild(newDeleteButton);
+
+        for(var e in alertChoices){
+            var newAlert = document.createElement("option");
+            newAlert.innerText = alertChoices[e];
+            if(alertChoices[e] === alertSelect){
+                newAlert.setAttribute("selected","selected");
+            }
+            newAlert.setAttribute("value",alertChoices[e]);
+            newSelect.appendChild(newAlert);
+        }
+        numberOfAlert++;
+    }
+
+    function deleteAlert(idOfAlert){
+        document.getElementById("alertSubContainer"+idOfAlert).remove();
+    }
+
+    function setMinOnEndDate(){
+        var startDate = document.getElementById("startDate");
+        var endDate = document.getElementById("endDate");
+
+        endDate.setAttribute("min",startDate.value);
+    }
+
+    function setMaxOnStartDate(){
+        var startDate = document.getElementById("startDate");
+        var endDate = document.getElementById("endDate");
+
+        startDate.setAttribute("max",endDate.value);
+    }
+</script>
+}

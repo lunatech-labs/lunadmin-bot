@@ -9,14 +9,13 @@ import reactivemongo.bson.BSONObjectID
 
 case class TaskDescription (
                            _id : String = BSONObjectID.generate().stringify,
-                           description : String,
+                           var description : String,
                            startDate : ZonedDateTime,
-                           category : String,
+                           var category : String,
                            `type`: TaskType
-                           )
-
-
-
+                           ){
+  def getType() : String = `type`.toString
+}
 
 object TaskDescription {
   implicit val myEnumFormat = new Format[TaskType.TaskType] {

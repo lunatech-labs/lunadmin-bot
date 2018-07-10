@@ -9,7 +9,7 @@ import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
 
 case class TaskCategory (
                           _id : String = BSONObjectID.generate().stringify ,
-                          nameOfCategory : String,
+                          name : String,
                           idOfCategoryParent : Option[String] = None
 )
 

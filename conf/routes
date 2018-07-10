@@ -3,16 +3,30 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET     /                           controllers.HomeController.index
+GET         /                                      controllers.HomeController.index
 
-POST     /signup                    controllers.HomeController.userSignUp
-POST     /login                     controllers.HomeController.userLogin
-GET      /logout                    controllers.HomeController.userLogout
-GET      /listTasks                 controllers.HomeController.displayTasks
-GET      /deleteTask/:id            controllers.HomeController.deleteTask(id : Int)
-GET      /addTask                   controllers.HomeController.goToAddTask
+POST        /signup                                controllers.HomeController.userSignUp
+POST        /login                                 controllers.HomeController.userLogin
+GET         /logout                                controllers.HomeController.userLogout
 
-GET     /count                      controllers.CountController.count
-GET     /message                    controllers.AsyncController.message
+GET         /Tasks                                 controllers.HomeController.displayTasks(page: Int, pageSize : Int)
+GET         /deleteTask                            controllers.HomeController.deleteTask(id : String, page : Int, pageSize : Int)
+GET         /addTask                               controllers.HomeController.goToAddTask
+POST        /addTask                               controllers.HomeController.addTask
+GET         /fullDetailedTask                      controllers.HomeController.displayFullDetailedTask(idOfTask : String)
+POST        /updateSingleTask                      controllers.HomeController.updateSingleTask(idOfTask : String)
+POST        /updateGroupedTask                     controllers.HomeController.updateGroupedTask(idOfTask : String)
+
+
+GET         /Users                                 controllers.HomeController.displayUser(page: Int, pageSize : Int)
+GET         /deleteUser                            controllers.HomeController.deleteUser(id : String, page : Int, pageSize : Int)
+GET         /fullDetailedUser                      controllers.HomeController.displayFullDetailedUser(idOfUser : String)
+
+POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
+POST        /paginationDT                          controllers.HomeController.paginationDisplayTask
+
+GET         /count                                 controllers.CountController.count
+GET         /message                               controllers.AsyncController.message
+
 # Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file               controllers.Assets.versioned(file)
+GET         /assets/*file                          controllers.Assets.versioned(file)

@@ -1,8 +1,18 @@
-
-@(listUser : List[User] , listGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,session: play.api.mvc.Session)
+@(listCategory : List[TaskCategory], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
-    <form method="post" action="@routes.HomeController.userSignUp()">
+
+    @{
+        if(flash.get("failure").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure!</strong> Your form ain't good !
+                </div>
+        }else{
+            <br/>
+        }
+    }
+    <form method="post" action="@routes.HomeController.addTask()">
         @helper.CSRF.formField
         <div class="form-group">
             <label for="description">Description</label>
@@ -11,25 +21,134 @@
 
         <div class="form-group">
             <label for="startDate">Start Date</label>
-            <input type="datetime-local" class="form-control" name="startDate" id="startDate" >
+            <input type="datetime-local" onchange="setMinOnEndDate()" class="form-control" name="startDate" id="startDate" required>
         </div>
 
         <div class="form-group">
             <label for="endDate">End Date</label>
-            <input type="datetime-local" class="form-control" name="endDate" id="endDate" >
+            <input type="datetime-local" class="form-control" name="endDate" id="endDate" required>
         </div>
 
         <label for="category">Select a category :</label>
-        <select class="form-control" id="category" name="category">
-            <option>meeting</option>
-            <option>into production</option>
-            <option>new arrival</option>
-            <option>Other</option>
+        <select class="form-control" id="category" onchange="setMaxOnStartDate()" name="category">
+            @for(category <- listCategory){
+                <option>@category.name</option>
+            }
         </select>
 
+        <label for="status">Select a status :</label>
+        <select class="form-control" id="status" name="status" >
+            @for(status <- listStatus){
+                <option>@status</option>
+            }
+        </select>
+
+        <label class="radio-inline" onclick="singleTaskRadioButtonClicked()"><input  type="radio" name="taskChoice" value="single" id="singleRadiobutton" required>Single Person Task</label>
+        <label class="radio-inline" onclick="groupedTaskRadioButtonClicked()"><input  type="radio" name="taskChoice" value="grouped" id="groupedRadioButton" >Grouped Task</label>
+        <br>
+
+        <div id="containerTaskChoice">
+            <select id="selectSingleTask" name="selectSingleTask" style="display:none">
+            @for(user <- listUser) {
+                <option value="@user._id">@user.firstName  @user.lastName</option>
+            }
+            </select>
+
+            <select id="selectGroupedTask" name="selectGroupedTask[]" multiple style="display:none" >
+            @for(userGroup <- listUserGroup) {
+                <option value="@userGroup.name">@userGroup.name</option>
+            }
+            </select>
+        </div>
+
+        <div id="alertContainer">
+            <label for="alertPlus">Add an alert :</label>
+            <a onclick="createAlert()" id="alertPlus"><img src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+        </div>
 
 
         <button type="submit" class="btn btn-primary">Add a task</button>
     </form>
+
+    <script>
+        var numberOfAlert = 1;
+        var alertChoices = { 0 : "minute",1 : "hour",2 : "day"};
+
+    function createAlert(){
+        var newContainer = document.createElement("div");
+        newContainer.setAttribute("id", "alertSubContainer"+ numberOfAlert.toString());
+        document.getElementById("alertContainer").appendChild(newContainer);
+
+        var newInput = document.createElement("INPUT");
+        newInput.setAttribute("class","form-control-sm");
+        newInput.setAttribute("type","number");
+        newInput.required = true;
+        newInput.setAttribute("name","alertNumber"+ numberOfAlert.toString());
+        newInput.setAttribute("id","alertNumber"+ numberOfAlert.toString());
+        newContainer.appendChild(newInput);
+
+        var newSelect = document.createElement("SELECT");
+        newSelect.setAttribute("name", "alertSelect" + numberOfAlert.toString());
+        newSelect.setAttribute("id", "alertSelect"+ numberOfAlert.toString());
+        newContainer.appendChild(newSelect);
+
+        var newDeleteButton = document.createElement("A");
+        newDeleteButton.setAttribute("id", "alertButton" + numberOfAlert.toString());
+        newDeleteButton.setAttribute("onClick","deleteAlert("+ numberOfAlert.toString() +")");
+        var newIcoDeleteButton = document.createElement("img");
+        newIcoDeleteButton.setAttribute("width", "25");
+        newIcoDeleteButton.setAttribute("height", "25");
+        newIcoDeleteButton.setAttribute("src","https://t5.rbxcdn.com/845ec37cb512d8bc579362377cadea35");
+        newDeleteButton.appendChild(newIcoDeleteButton);
+        newContainer.appendChild(newDeleteButton);
+
+        for(var e in alertChoices){
+            var newAlert = document.createElement("option");
+            newAlert.innerText = alertChoices[e];
+            newAlert.setAttribute("value",alertChoices[e]);
+            newSelect.appendChild(newAlert);
+        }
+        numberOfAlert++;
+    }
+
+    function deleteAlert(idOfAlert){
+        document.getElementById("alertSubContainer"+idOfAlert).remove();
+    }
+
+
+    function setMinOnEndDate(){
+        var startDate = document.getElementById("startDate");
+        var endDate = document.getElementById("endDate");
+
+        endDate.setAttribute("min",startDate.value);
+    }
+
+    function setMaxOnStartDate(){
+        var startDate = document.getElementById("startDate");
+        var endDate = document.getElementById("endDate");
+
+        startDate.setAttribute("max",endDate.value);
+    }
+
+    function singleTaskRadioButtonClicked(){
+        var selectSingleTask = document.getElementById("selectSingleTask");
+        var selectGroupedTask = document.getElementById("selectGroupedTask");
+
+        if(selectSingleTask.style.display === "none"){
+            selectSingleTask.style.display = "block";
+            selectGroupedTask.style.display = "none";
+        }
+    }
+
+    function groupedTaskRadioButtonClicked(){
+        var selectSingleTask = document.getElementById("selectSingleTask");
+        var selectGroupedTask = document.getElementById("selectGroupedTask");
+
+        if(selectGroupedTask.style.display === "none"){
+            selectGroupedTask.style.display = "block";
+            selectSingleTask.style.display = "none";
+        }
+    }
+    </script>
 
 }

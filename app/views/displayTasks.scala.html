@@ -1,7 +1,25 @@
-@(listTask : List[Task], listUser : List[User], listGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,session: play.api.mvc.Session)
+@import scala.concurrent.ExecutionContext
+@(list : List[TaskDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+
 
 @main("LunAdmin", assetsFinder,session) {
-    <br>
+
+    @{
+        if(flash.get("success").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Sucess!</strong> Your task has been created !
+                </div><br/>
+        }else if(flash.get("update").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Sucess!</strong> Your task has been updated !
+                </div><br/>
+        }else{
+            <br/>
+        }
+    }
+
     <div class="container">
         <h2>Task Table</h2>
         <div class="container">
@@ -15,31 +33,40 @@
         <table class="table table-bordered table-striped small">
             <thead>
                 <tr>
-                    <th>description</th>
-                    <th>startDate</th>
-                    <th>endDate</th>
-                    <th>status</th>
-                    <th>category</th>
-                    <th>UserConcerned</th>
-                    <th>alerts</th>
+                    <th>Id</th>
+                    <th>Description</th>
+                    <th>StartDate</th>
+                    <th>Category</th>
+                    <th>Type</th>
                 </tr>
             </thead>
             <tbody id="myTable">
-                @for(task <- listTask) {
-                    <tr>
-                        <td>@task.getDescription()</td>
-                        <td>@task.getStartDate()</td>
-                        <td>@task.getEndDate()</td>
-                        <td>@task.getStatus()</td>
-                        <td>@task.getCategory()</td>
-                        <td>@task.getNameById(listUser,listGroup)</td>
-                        <td>@task.getAlert()</td>
-                        <td><a href="@routes.HomeController.deleteTask(0)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task with id : ' + @task.getId().toString + ' ?');">delete</a></td>
-                    </tr>
-                }
+            @for(task <- list) {
+                <tr>
+                    <td>@task._id</td>
+                    <td>@task.description</td>
+                    <td>@task.startDate.format(tools.DateUtils.dateTimeFormatterUtc)</td>
+                    <td>@task.category</td>
+                    <td>@task.getType()</td>
+                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedTask(task._id)"> Details</a> &nbsp <a href="@routes.HomeController.deleteTask(task._id,page,pageSize)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task : @{task._id} ');">delete</a></td>
+                </tr>
+            }
             </tbody>
         </table>
 
+        <form method="post" action="@routes.HomeController.paginationDisplayTask()">
+            @helper.CSRF.formField
+            <input class="form-control-sm" type="number" onchange="this.form.submit()" value="@page" id="page" name="page">
+        View <select name="pageSize" id="pageSize" onchange="this.form.submit()">
+            @for(pgSize <- Seq(5,10,25)){
+                @if(pgSize == pageSize){
+                    <option value="@pgSize" selected="selected">@pgSize</option>
+                }else{
+                    <option value="@pgSize">@pgSize</option>
+                }
+            }
+            </select> tasks at a time.
+        </form>
 
     </div>
 
@@ -53,4 +80,6 @@
                 });
             });
     </script>
+
+
 }

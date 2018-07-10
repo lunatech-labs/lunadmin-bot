@@ -10,6 +10,8 @@ import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
 import tools.DateUtils
 
+import scala.concurrent.duration.Duration
+
 
 case class SinglePersonTask (
                               _id : String = BSONObjectID.generate().stringify,
@@ -19,7 +21,7 @@ case class SinglePersonTask (
                               status : String,
                               employeeId : String,
                               category : String,
-                              alert : Option[List[ZonedDateTime]] = None,
+                              alert : List[(Long,String)],
                               `type`: TaskType = TaskType.SINGLE
 )extends Task(_id, description, startDate, endDate, status, category, alert,TaskType.SINGLE){
 
