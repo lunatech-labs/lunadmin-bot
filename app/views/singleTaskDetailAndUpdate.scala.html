@@ -1,5 +1,6 @@
 @import java.time.ZonedDateTime
-@(task : SinglePersonTask,listCategory : List[TaskCategory], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
+@import java.time.ZoneId
+@(task : SinglePersonTask,listCategory : List[TaskCategory], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String], localZoneTimeId : String )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -22,12 +23,12 @@ if(flash.get("failure").isDefined){
 
     <div class="form-group">
         <label for="startDate">Start Date</label>
-        <input type="datetime-local" class="form-control" onchange="setMinOnEndDate()" name="startDate" value="@task.getStartDateInJavaDate()" id="startDate" required>
+        <input type="datetime-local" class="form-control" onchange="setMinOnEndDate()" name="startDate" value="@task.getDateInJavaDate(task.startDate.withZoneSameInstant(ZoneId.of(localZoneTimeId)))" id="startDate" required>
     </div>
 
     <div class="form-group">
         <label for="endDate">End Date</label>
-        <input type="datetime-local" class="form-control" onchange="setMaxOnStartDate()" name="endDate" value="@task.getEndDateInJavaDate()" id="endDate" required>
+        <input type="datetime-local" class="form-control" onchange="setMaxOnStartDate()" name="endDate" value="@task.getDateInJavaDate(task.endDate.withZoneSameInstant(ZoneId.of(localZoneTimeId)))" id="endDate" required>
     </div>
 
     <label for="category">Select a category :</label>
@@ -87,6 +88,8 @@ if(flash.get("failure").isDefined){
 
 
     </div>
+
+    <input type="text" value="@task.isActive" name="isActive" hidden>
 
     <button type="submit" class="btn btn-primary">Update</button>
 </form>

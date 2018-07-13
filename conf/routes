@@ -10,7 +10,7 @@ POST        /login                                 controllers.HomeController.us
 GET         /logout                                controllers.HomeController.userLogout
 
 GET         /Tasks                                 controllers.HomeController.displayTasks(page: Int, pageSize : Int)
-GET         /deleteTask                            controllers.HomeController.deleteTask(id : String, page : Int, pageSize : Int)
+GET         /deleteTask                            controllers.HomeController.deleteTask(id : String,taskType : String , page : Int, pageSize : Int)
 GET         /addTask                               controllers.HomeController.goToAddTask
 POST        /addTask                               controllers.HomeController.addTask
 GET         /fullDetailedTask                      controllers.HomeController.displayFullDetailedTask(idOfTask : String)
@@ -21,6 +21,9 @@ POST        /updateGroupedTask                     controllers.HomeController.up
 GET         /Users                                 controllers.HomeController.displayUser(page: Int, pageSize : Int)
 GET         /deleteUser                            controllers.HomeController.deleteUser(id : String, page : Int, pageSize : Int)
 GET         /fullDetailedUser                      controllers.HomeController.displayFullDetailedUser(idOfUser : String)
+POST        /addUser                               controllers.HomeController.addUser
+GET         /addUser                               controllers.HomeController.goToAddUser
+POST        /updateUser                            controllers.HomeController.updateUser(idOfUser : String)
 
 POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
 POST        /paginationDT                          controllers.HomeController.paginationDisplayTask

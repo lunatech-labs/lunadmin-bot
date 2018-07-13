@@ -1,6 +1,8 @@
 @import scala.concurrent.ExecutionContext
-@(list : List[TaskDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
+@import tools.DateUtils
+@import java.time.ZoneId
+@(list : List[TaskDescription],localZoneTimeId : String, page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -45,10 +47,10 @@
                 <tr>
                     <td>@task._id</td>
                     <td>@task.description</td>
-                    <td>@task.startDate.format(tools.DateUtils.dateTimeFormatterUtc)</td>
+                    <td>@task.startDate.withZoneSameInstant(ZoneId.of(localZoneTimeId)).format(DateUtils.dateTimeFormatterLocal)</td>
                     <td>@task.category</td>
                     <td>@task.getType()</td>
-                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedTask(task._id)"> Details</a> &nbsp <a href="@routes.HomeController.deleteTask(task._id,page,pageSize)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task : @{task._id} ');">delete</a></td>
+                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedTask(task._id)"> Details</a> &nbsp <a href="@routes.HomeController.deleteTask(task._id,task.`type`.toString,page,pageSize)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task : @{task._id} ');">delete</a></td>
                 </tr>
             }
             </tbody>

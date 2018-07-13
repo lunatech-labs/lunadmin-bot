@@ -1,16 +1,36 @@
 @import scala.concurrent.ExecutionContext
-@(list : List[UserDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session)
+@(list : List[UserDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash : Flash)
 
 
 
 @main("LunAdmin", assetsFinder,session) {
-    <br>
+    @{
+        if(flash.get("success").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Sucess!</strong> The User has been created !
+                </div><br/>
+        }else if(flash.get("update").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Sucess!</strong> The User has been updated !
+                </div><br/>
+        }else if(flash.get("userNotFound").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Sucess!</strong> The User could not be found !
+                </div><br/>
+        }else{
+                    <br/>
+        }
+    }
+
     <div class="container">
         <h2>User Table</h2>
         <div class="container">
             <div class="row">
                 <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
-                <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+                <a href="@routes.HomeController.goToAddUser"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
             </div>
         </div>
         <input class="form-control" id="myInput" type="text" placeholder="Search..">
@@ -31,7 +51,7 @@
                     <td>@user.firstName</td>
                     <td>@user.lastName</td>
                     <td>@user.mail</td>
-                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedUser(user._id)"> Details</a> &nbsp <a onclick="return confirm('Delete Task : @{user.firstName + " " + user.lastName} ');" href="@routes.HomeController.deleteUser(user._id,page,pageSize)" class="btn btn-danger btn-sm" >delete</a></td>
+                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedUser(user._id)"> Details</a> &nbsp <a onclick="return confirm('Delete User : @{user.firstName + " " + user.lastName} ');" href="@routes.HomeController.deleteUser(user._id,page,pageSize)" class="btn btn-danger btn-sm" >delete</a></td>
                 </tr>
             }
             </tbody>

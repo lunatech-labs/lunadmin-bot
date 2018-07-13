@@ -3,7 +3,7 @@ package store
 import java.time.ZonedDateTime
 import java.util.Date
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import models._
 import play.api.{Configuration, Logger}
 import play.api.libs.json.{JsObject, Json}
@@ -14,14 +14,14 @@ import reactivemongo.play.json.collection.JSONCollection
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
+@Singleton
 class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Configuration)(implicit ec: ExecutionContext) {
 
   private val taskCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("task"))
   import reactivemongo.play.json.ImplicitBSONHandlers._
 
   def findAllTaskDescription(page : Int, pageSize : Int) : Future[List[TaskDescription]] = {
-    val query = BSONDocument()
+    val query = BSONDocument("isActive" -> true)
     taskCollection.flatMap(
       _.find(query)
       .options(QueryOpts(skipN = page * pageSize, pageSize))
@@ -31,16 +31,17 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findTaskDescriptionByID(id : String) : Future[Option[TaskDescription]] = {
-    val query = BSONDocument("_id" -> BSONDocument("$regex" -> id))
+    val query = BSONDocument("isActive" -> true,"_id" -> BSONDocument("$regex" -> id))
     val cursor : Future[Cursor[TaskDescription]] = taskCollection.map(f => f.find(query).cursor[TaskDescription]())
     val futurTask : Future[Option[TaskDescription]] = cursor.flatMap(_.headOption)
     futurTask
   }
 
   def findTaskDescriptionByDescription(description: String, page : Int , pageSize : Int) : Future[List[TaskDescription]] = {
-    val query = Json.obj{
+    val query = Json.obj(
+      "isActive" -> true,
       "description" -> Json.obj{"$regex" -> description}
-    }
+    )
 
     taskCollection.flatMap(
       _.find(query)
@@ -50,10 +51,28 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
     )
   }
 
-  def findTaskDescriptionByStartDate(startDate : ZonedDateTime, page : Int, pageSize : Int) : Future[List[TaskDescription]] = {
-    val query = Json.obj{
-      "startDate" -> startDate
+  private def findSingleTaskIdsForDelete(idOfUser : String) : Future[List[(String,String)]] = {
+    val query = Json.obj("isActive" -> true,"type" -> "SINGLE", "employeeId" -> idOfUser)
+
+    taskCollection.flatMap(
+      _.find(query)
+        .cursor[TaskDescription]()
+        .collect[List](-1, Cursor.FailOnError[List[TaskDescription]]())
+        .map(list => list.map(taskdescription => (taskdescription._id,taskdescription.`type`.toString)))
+    )
+  }
+
+  def deleteAllSingleTaskOfUser(idOfUser : String): Unit ={
+    findSingleTaskIdsForDelete(idOfUser).map { e =>
+      e.foreach{id => deleteTask(id._1,id._2)}
     }
+  }
+
+  def findTaskDescriptionByStartDate(startDate : ZonedDateTime, page : Int, pageSize : Int) : Future[List[TaskDescription]] = {
+    val query = Json.obj(
+      "isActive" -> true,
+      "startDate" -> startDate
+    )
 
     taskCollection.flatMap(
       _.find(query)
@@ -64,9 +83,10 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findTaskDescriptionByCategory(category : String, page : Int, pageSize : Int): Future[List[TaskDescription]] ={
-    val query = Json.obj{
+    val query = Json.obj(
+      "isActive" -> true,
       "category" -> category
-    }
+    )
 
     taskCollection.flatMap(
       _.find(query)
@@ -77,9 +97,10 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findTaskDescriptionByType(typeTask : String, page : Int, pageSize : Int) : Future[List[TaskDescription]] = {
-    val query = Json.obj{
+    val query = Json.obj(
+      "isActive" -> true,
       "type" -> typeTask.toUpperCase
-    }
+    )
 
     taskCollection.flatMap(
       _.find(query)
@@ -90,14 +111,14 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findSinglePersonTaskById(id: String): Future[Option[SinglePersonTask]] = {
-    val query = BSONDocument("_id" -> id , "type" -> "SINGLE")
+    val query = BSONDocument("isActive" -> true,"_id" -> id , "type" -> "SINGLE")
     val cursor : Future[Cursor[SinglePersonTask]] = taskCollection.map(f => f.find(query).cursor[SinglePersonTask]())
     val futurTask : Future[Option[SinglePersonTask]] = cursor.flatMap(_.headOption)
     futurTask
   }
 
   def findGroupedPersonTaskById(id: String): Future[Option[GroupedTask]] = {
-    val query = BSONDocument("_id" -> id , "type" -> "GROUPED")
+    val query = BSONDocument("isActive" -> true,"_id" -> id , "type" -> "GROUPED")
     val cursor : Future[Cursor[GroupedTask]] = taskCollection.map(f => f.find(query).cursor[GroupedTask]())
     val futurTask : Future[Option[GroupedTask]] = cursor.flatMap(_.headOption)
     futurTask
@@ -130,7 +151,8 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
                                "employeeId" -> task.employeeId,
                                "category" -> task.category,
                                "alert" -> task.alert,
-                               "type"-> TaskType.SINGLE
+                               "type"-> TaskType.SINGLE,
+                               "isActive" -> task.isActive
     )
     taskCollection.map(c => c.update(selectUpdate,updateQuery))
   }
@@ -144,14 +166,45 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
                                "groupName" -> task.groupName,
                                "category" -> task.category,
                                "alert" -> task.alert,
-                               "type"-> TaskType.GROUPED
+                               "type"-> TaskType.GROUPED,
+                               "isActive" -> task.isActive
     )
     taskCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 
-  def deleteTask(id : String) = {
-    val removeQuery = Json.obj("_id" -> id)
-    taskCollection.map(c => c.remove(removeQuery))
+  def deleteTask(idOfTask : String, taskType : String) = {
+    if(taskType == "SINGLE"){
+     val task = findSinglePersonTaskById(idOfTask)
+      task.map{t =>
+        if(t.isDefined)
+          updateSinglePersonTask(idOfTask,SinglePersonTask(
+            description = t.get.description,
+            startDate = t.get.startDate,
+            endDate = t.get.endDate,
+            status = t.get.status,
+            employeeId = t.get.employeeId,
+            category = t.get.category,
+            alert = t.get.alert,
+            isActive = false
+          ))
+      }
+    }else{
+      val task = findGroupedPersonTaskById(idOfTask)
+      task.map{t =>
+        if(t.isDefined){
+          updateGroupedTask(idOfTask,GroupedTask(
+            description = t.get.description,
+            startDate = t.get.startDate,
+            endDate = t.get.endDate,
+            status = t.get.status,
+            groupName = t.get.groupName,
+            category = t.get.category,
+            alert = t.get.alert,
+            isActive = false
+          ))
+        }
+      }
+    }
   }
 
   def removeTaskCategoryFromTask(taskCategoryName : String) = {

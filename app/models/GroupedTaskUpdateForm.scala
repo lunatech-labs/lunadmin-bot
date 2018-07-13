@@ -11,7 +11,8 @@ case class GroupedTaskUpdateForm (
                                         status : String,
                                         selectGroupedTask : List[String],
                                         alertNumbers : List[Int],
-                                        alertSelects : List[String]
+                                        alertSelects : List[String],
+                                        isActive : Boolean
                                       )
 
 object GroupedTaskUpdateForm {
@@ -22,7 +23,8 @@ object GroupedTaskUpdateForm {
               status : String,
               selectGroupedTask : List[String],
               alertNumbers : List[Int],
-              alertSelects : List[String]) = {
+              alertSelects : List[String],
+              isActive : Boolean) = {
     GroupedTaskUpdateForm(
       description,
       ZonedDateTime.ofInstant(startDate.toInstant, ZoneId.of("UTC")),
@@ -31,7 +33,8 @@ object GroupedTaskUpdateForm {
       status,
       selectGroupedTask,
       alertNumbers,
-      alertSelects
+      alertSelects,
+      isActive
     )
   }
 
@@ -44,6 +47,7 @@ object GroupedTaskUpdateForm {
       tf.status,
       tf.selectGroupedTask,
       tf.alertNumbers,
-      tf.alertSelects
+      tf.alertSelects,
+      tf.isActive
     ))
 }

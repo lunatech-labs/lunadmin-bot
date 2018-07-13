@@ -1,6 +1,8 @@
 package store
 
-import javax.inject.Inject
+import java.time.LocalDate
+
+import javax.inject.{Inject, Singleton}
 import models.{SinglePersonTask, TaskDescription, User, UserDescription}
 import play.api.{Configuration, Logger}
 import play.modules.reactivemongo.ReactiveMongoApi
@@ -11,7 +13,8 @@ import reactivemongo.play.json.collection.JSONCollection
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 
-class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Configuration)(implicit ec: ExecutionContext){
+@Singleton
+class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataStore: TaskDataStore ,conf :Configuration)(implicit ec: ExecutionContext){
   private val userCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("user"))
   import reactivemongo.play.json.ImplicitBSONHandlers._
 
@@ -24,7 +27,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findAllUserDescription(page : Int, pageSize : Int) : Future[List[UserDescription]] = {
-    val query = BSONDocument()
+    val query = BSONDocument("isActive" -> true)
     userCollection.flatMap(
       _.find(query)
         .options(QueryOpts(skipN = page * pageSize, pageSize))
@@ -34,7 +37,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findEveryUserDescription() : Future[List[UserDescription]] = {
-    val query = BSONDocument()
+    val query = BSONDocument("isActive" -> true)
     userCollection.flatMap(
       _.find(query)
         .cursor[UserDescription]()
@@ -44,6 +47,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
 
   def findUserDescriptionByName(nameToLookFor : String, page : Int, pageSize : Int) : Future[List[UserDescription]] = {
     val query = Json.obj(
+      "isActive" -> true,
       "$or" -> Json.arr(
        Json.obj("firstName" -> Json.obj("$regex" -> nameToLookFor)),
        Json.obj("lastName" -> Json.obj("$regex" -> nameToLookFor))
@@ -59,7 +63,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findUserDescriptionByMail(mailToLookFor : String, page : Int, pageSize : Int) : Future[List[UserDescription]] = {
-    val query = Json.obj("mail" -> Json.obj("$regex" -> mailToLookFor))
+    val query = Json.obj("isActive" -> true,"mail" -> Json.obj("$regex" -> mailToLookFor))
 
     userCollection.flatMap(
       _.find(query)
@@ -70,7 +74,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
   }
 
   def findUserDescriptionByUserGroup(userGroupName : String) : Future[List[UserDescription]] = {
-    val query = Json.obj("groupName" -> userGroupName)
+    val query = Json.obj("isActive" -> true,"groupName" -> userGroupName)
 
     userCollection.flatMap(
       _.find(query)
@@ -81,29 +85,66 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
 
 
   def addUser(user : User) = {
-    val javaDoc = User.fmt.writes(user)
+    val javaDoc = Json.obj(
+      "_id" -> user._id,
+      "mail" -> user.mail,
+      "password" -> user.password,
+      "lastName" -> user.lastName,
+      "firstName" -> user.firstName,
+      "birthDate" -> User.dateFormatter.writes(user.birthDate),
+      "groupName" -> user.groupName,
+      "status" -> user.status,
+      "hireDate" -> User.dateFormatter.writes(user.hireDate),
+      "picture" -> user.picture,
+      "phone" -> user.phone,
+      "cloudLinks" -> user.cloudLinks,
+      "isActive" -> user.isActive,
+      "timeZone" -> user.timeZone
+    )
     userCollection.map(c => c.insert(javaDoc))
   }
 
   def updateUser(id: String ,user: User) = {
     val selectUpdate = Json.obj("_id" -> id)
     val updateQuery = Json.obj("mail" -> user.mail,
-                              "password" -> BSONObjectID.generate().stringify,
+                              "password" -> user.password,
                               "lastName" -> user.lastName,
                               "firstName" -> user.firstName,
-                              "birthDate" -> user.birthDate,
-                              "groupId" -> user.groupName,
+                              "birthDate" -> User.dateFormatter.writes(user.birthDate),
+                              "groupName" -> user.groupName,
                               "status" -> user.status,
-                              "hireDate" -> user.hireDate,
+                              "hireDate" -> User.dateFormatter.writes(user.hireDate),
+                              "picture" -> user.picture,
                               "phone" -> user.phone,
-                              "cloudLinks" -> user.cloudLinks
+                              "cloudLinks" -> user.cloudLinks,
+                              "isActive" -> user.isActive,
+                              "timeZone" -> user.timeZone
               )
     userCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 
-  def deleteUser(id : String) = {
-    val removeQuery = Json.obj("_id" -> id)
-    userCollection.map(c => c.remove(removeQuery))
+  def deleteUser(idOfUser : String) = {
+    val user = findUserById(idOfUser)
+    user.map{u =>
+      if(u.isDefined){
+       updateUser(idOfUser,User(
+         mail = u.get.mail,
+         password = u.get.password,
+         lastName = u.get.lastName,
+         firstName = u.get.firstName,
+         birthDate = u.get.birthDate,
+         groupName = u.get.groupName,
+         status = u.get.status,
+         hireDate = u.get.hireDate,
+         picture = u.get.picture,
+         phone = u.get.phone,
+         cloudLinks = u.get.cloudLinks,
+         isActive = false,
+         timeZone = u.get.timeZone
+       ))
+        taskDataStore.deleteAllSingleTaskOfUser(idOfUser)
+      }
+    }
   }
 
   def removeUserGroupFromUser(userGroupName : String) = {

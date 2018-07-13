@@ -1,6 +1,6 @@
 package store
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import models._
 import play.api.{Configuration, Logger}
 import play.modules.reactivemongo.ReactiveMongoApi
@@ -11,6 +11,7 @@ import reactivemongo.play.json.collection.JSONCollection
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 
+@Singleton
 class UserGroupDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Configuration)(implicit ec: ExecutionContext){
   private val userGroupCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("userGroup"))
   import reactivemongo.play.json.ImplicitBSONHandlers._

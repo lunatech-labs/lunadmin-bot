@@ -1,18 +1,13 @@
 package models
 
-import java.text.SimpleDateFormat
-import java.time.{Instant, ZoneId, ZonedDateTime}
+import java.time.{ZoneId, ZonedDateTime}
 import java.util.Date
 
 import models.TaskType.TaskType
-import play.api.Logger
 import reactivemongo.bson.BSONObjectID
 import tools.DateUtils
 
 import scala.concurrent.duration._
-
-
-
 
 abstract class Task(_id: String = BSONObjectID.generate().stringify,
                     description: String,
@@ -21,7 +16,8 @@ abstract class Task(_id: String = BSONObjectID.generate().stringify,
                     status: String,
                     category: String,
                     alert: List[(Long,String)],
-                    `type`: TaskType) {
+                    `type`: TaskType,
+                    isActive : Boolean) {
 
   def getNameById(userList: List[User], groupList: List[UserGroup]): String
 
@@ -41,11 +37,9 @@ abstract class Task(_id: String = BSONObjectID.generate().stringify,
 
   def getStartDate() = getDate(startDate)
 
-  def getStartDateInJavaDate() = DateUtils.dateTimeFormatterJavaUtil.format(startDate)
+  def getDateInJavaDate(zonedDateTime: ZonedDateTime) = DateUtils.dateTimeFormatterJavaUtil.format(zonedDateTime)
 
   def getEndDate() = getDate(endDate)
-
-  def getEndDateInJavaDate() = DateUtils.dateTimeFormatterJavaUtil.format(endDate)
 
   def getStatus() = status
 

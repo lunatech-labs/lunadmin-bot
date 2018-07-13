@@ -1,21 +1,31 @@
 package controllers
 
+import java.time.{LocalDate, ZonedDateTime}
+import java.util.{Calendar, Locale, TimeZone}
+
 import javax.inject._
 import models._
 import play.Logger
+import play.api.Configuration
 import play.api.data.Form
 import play.api.data.Forms.{email, mapping, number, optional, text}
 import play.api.mvc._
-import play.api.data._
 import play.api.data.Forms._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
+import java.util.Date
+
+import tools.DateUtils
 
 
 @Singleton
-class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder, ec : ExecutionContext)
-  extends AbstractController(s.controllerComponent) {
+class HomeController @Inject()(s : Starter,conf : Configuration) (implicit assetsFinder: AssetsFinder, ec : ExecutionContext)
+  extends AbstractController(s.controllerComponent){
+
+  val listOfStatus : List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
+  val listOfPaperName : List[String] = conf.underlying.getStringList("papersCategory.default.tags").asScala.toList
 
 
   def index = Action { implicit request: Request[AnyContent] =>
@@ -29,7 +39,7 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text
-      )(UserForm.apply)(UserForm.unapply)
+      )(UserSignUpForm.apply)(UserSignUpForm.unapply)
     )
     userForm.bindFromRequest().fold(
       formWithErrors => {
@@ -64,11 +74,11 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
 
   def displayTasks(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
     s.taskDataStore.findAllTaskDescription(page, pageSize).map(e =>
-      Ok(views.html.displayTasks(e, page, pageSize)))
+      Ok(views.html.displayTasks(e,getLocalTimeZoneId(request), page, pageSize)))
   }
 
-  def deleteTask(idTask: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
-    s.taskDataStore.deleteTask(idTask)
+  def deleteTask(idTask: String,taskType : String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
+    s.taskDataStore.deleteTask(idTask,taskType)
     Redirect(routes.HomeController.displayTasks(page, pageSize))
   }
 
@@ -80,7 +90,15 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
     } yield (listCategory, listUser, listUserGroup)
 
 
-    res.map(e => Ok(views.html.taskForm(e._1, e._2, e._3, s.listOfTaskStatus)))
+    res.map(e => Ok(views.html.taskAddForm(e._1, e._2, e._3, s.listOfTaskStatus)))
+  }
+
+  def goToAddUser() = Action.async {implicit request: Request[AnyContent] =>
+    val res = for {
+      listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
+    } yield listUserGroup
+
+    res.map(e => Ok(views.html.userAddForm(e,listOfStatus,listOfPaperName)))
   }
 
   def paginationDisplayTask() = Action { implicit request: Request[AnyContent] =>
@@ -161,8 +179,6 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
     )
     taskForm.bindFromRequest().fold(
       formWithErrors => {
-        Logger.info(formWithErrors.toString)
-        Logger.info(formWithErrors.errors.toString)
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
       },
       userData => {
@@ -191,12 +207,74 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
             category = userData.category,
             alert = finalListOfAlert))
         }
-
-
         Redirect(routes.HomeController.displayTasks(0, 10)).flashing("success" -> "someSucess")
       }
     )
   }
+
+  def addUser() = Action { implicit request: Request[AnyContent] =>
+    val papers = request.body.asFormUrlEncoded.map{ x =>
+      x.filterKeys(k => k.startsWith("paper"))
+    }
+
+    val potentialUrlPicture = request.body.asFormUrlEncoded.map{ x =>
+      x.find(p => p._1 == "picture")
+    }
+    var finalUrlPicture : Option[String] = None
+    if(potentialUrlPicture.isDefined){
+      finalUrlPicture = potentialUrlPicture.get.map(x => x._2.head)
+    }
+
+    var listOfPapers : List[String] = List()
+    var listOfPapersWithNames : List[(String,String)] = List()
+    if(papers.isDefined){
+      listOfPapers = listOfPapers ++ papers.get.map(e => e._2.head)
+      for(index <- listOfPaperName.indices)
+      listOfPapersWithNames = listOfPapersWithNames :+ (listOfPaperName(index),listOfPapers(index))
+    }
+
+    val userForm = Form(
+      mapping(
+        "mail" -> text,
+        "password" -> text,
+        "firstName" -> text,
+        "lastName" -> text,
+        "birthDate" -> localDate,
+        "groupName" -> optional(list(nonEmptyText)),
+        "status" -> optional(text),
+        "hireDate" -> localDate,
+        "picture" -> optional(text),
+        "phone" -> optional(text),
+        "cloudLinks" -> list(text),
+        "isActive" -> boolean,
+        "timeZone" -> text
+      )(UserAddForm.apply)(UserAddForm.unapply)
+    )
+
+    userForm.bindFromRequest().fold(
+      formWithErrors => {
+        Logger.info(formWithErrors.toString)
+        Logger.info(formWithErrors.errors.toString)
+        Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
+      },
+      userData => {
+        s.userDataStore.addUser(User(userData.mail,
+                                     userData.password,
+                                     userData.firstName,
+                                     userData.lastName,
+                                     birthDate = userData.birthDate,
+                                     groupName = userData.groupName,
+                                     status = userData.status,
+                                     hireDate = userData.hireDate,
+                                     picture = finalUrlPicture,
+                                     phone = userData.phone,
+                                     cloudLinks = listOfPapersWithNames,
+                                     timeZone = userData.timeZone ))
+
+        Redirect(routes.HomeController.displayUser(0,10)).flashing("success" -> "someSucess")
+      })
+  }
+
 
   def displayFullDetailedTask(idOfTask: String) = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
@@ -210,9 +288,9 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
 
     res.map { e =>
       if (e._4.isDefined && e._4.get.`type` == TaskType.SINGLE) {
-        Ok(views.html.singleTaskDetailAndUpdate(e._5.get, e._1, e._2, e._3, s.listOfTaskStatus))
+        Ok(views.html.singleTaskDetailAndUpdate(e._5.get, e._1, e._2, e._3, s.listOfTaskStatus, getLocalTimeZoneId(request)))
       } else {
-        Ok(views.html.groupedTaskDetailAndUpdate(e._6.get, e._1, e._2, e._3, s.listOfTaskStatus))
+        Ok(views.html.groupedTaskDetailAndUpdate(e._6.get, e._1, e._2, e._3, s.listOfTaskStatus, getLocalTimeZoneId(request)))
       }
     }
   }
@@ -220,10 +298,15 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
   def displayFullDetailedUser(idOfUser: String) = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
       user <- s.userDataStore.findUserById(idOfUser)
-    } yield user
+      listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
+    } yield (user,listUserGroup)
 
     res.map { e =>
-      Ok(views.html.index())
+      if(e._1.isDefined){
+        Ok(views.html.userDetailAndUpdate(e._1.get,e._2,listOfStatus,listOfPaperName, getLocalTimeZoneId(request)))
+      }else{
+        Redirect(routes.HomeController.displayUser(0,10)).flashing("userNotFound" -> "somefail")
+      }
     }
   }
 
@@ -254,7 +337,8 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
         "status" -> text,
         "selectGroupedTask" -> list(nonEmptyText),
         "alertNumbers" -> default(list(number),listOfAlertNumbers),
-        "alertSelects" -> default(list(text),listOfAlertSelects)
+        "alertSelects" -> default(list(text),listOfAlertSelects),
+        "isActive" -> boolean
       )(GroupedTaskUpdateForm.newFrom)(GroupedTaskUpdateForm.toTuple)
     )
 
@@ -270,7 +354,6 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
           finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong,userData.alertSelects(e)).toMillis,userData.alertSelects(e))
         }
 
-        Logger.info(tools.DateUtils.dateTimeUTC.format(userData.startDate))
         s.taskDataStore.updateGroupedTask(idOfTask, GroupedTask(
           description = userData.description,
           startDate = userData.startDate,
@@ -278,7 +361,8 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
           status = userData.status,
           groupName = userData.selectGroupedTask,
           category = userData.category,
-          alert = finalListOfAlert))
+          alert = finalListOfAlert,
+          isActive = userData.isActive))
 
       })
     Redirect(routes.HomeController.displayTasks(0,10)).flashing("update" -> "someUpdate")
@@ -311,7 +395,8 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
         "status" -> text,
         "selectSingleTask" -> text,
         "alertNumbers" -> default(list(number),listOfAlertNumbers),
-        "alertSelects" -> default(list(text),listOfAlertSelects)
+        "alertSelects" -> default(list(text),listOfAlertSelects),
+        "isActive" -> boolean
       )(SinglePersonTaskUpdateForm.newFrom)(SinglePersonTaskUpdateForm.toTuple)
     )
 
@@ -327,7 +412,6 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
           finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong,userData.alertSelects(e)).toMillis,userData.alertSelects(e))
         }
 
-        Logger.info(tools.DateUtils.dateTimeUTC.format(userData.startDate))
         s.taskDataStore.updateSinglePersonTask(idOfTask, SinglePersonTask(
           description = userData.description,
           startDate = userData.startDate,
@@ -335,10 +419,85 @@ class HomeController @Inject()(s : Starter) (implicit assetsFinder: AssetsFinder
           status = userData.status,
           employeeId = userData.selectSingleTask,
           category = userData.category,
-          alert = finalListOfAlert))
+          alert = finalListOfAlert,
+          isActive = userData.isActive
+          )
+        )
 
       })
     Redirect(routes.HomeController.displayTasks(0,10)).flashing("update" -> "someUpdate")
   }
 
+  def updateUser(idOfUser : String) = Action { implicit request: Request[AnyContent] =>
+    val papers = request.body.asFormUrlEncoded.map{ x =>
+      x.filterKeys(k => k.startsWith("paper"))
+    }
+
+    var listOfPapers : List[String] = List()
+    var listOfPapersWithNames : List[(String,String)] = List()
+    if(papers.isDefined){
+      listOfPapers = listOfPapers ++ papers.get.map(e => e._2.head)
+      for(index <- listOfPaperName.indices)
+        listOfPapersWithNames = listOfPapersWithNames :+ (listOfPaperName(index),listOfPapers(index))
+    }
+
+    val potentialUrlPicture = request.body.asFormUrlEncoded.map{ x =>
+      x.find(p => p._1 == "picture")
+    }
+    var finalUrlPicture : Option[String] = None
+    if(potentialUrlPicture.isDefined){
+      finalUrlPicture = potentialUrlPicture.get.map(x => x._2.head)
+    }
+
+    val userForm = Form(
+      mapping(
+        "mail" -> text,
+        "password" -> text,
+        "firstName" -> text,
+        "lastName" -> text,
+        "birthDate" -> localDate,
+        "groupName" -> optional(list(nonEmptyText)),
+        "status" -> optional(text),
+        "hireDate" -> localDate,
+        "picture" -> optional(text),
+        "phone" -> optional(text),
+        "cloudLinks" -> list(text),
+        "isActive" -> boolean,
+        "timeZone" -> text
+      )(UserAddForm.apply)(UserAddForm.unapply)
+    )
+
+    userForm.bindFromRequest().fold(
+      formWithErrors => {
+        Logger.info(formWithErrors.errors.toString)
+        Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("failure" -> "someFailure")
+      },
+      userData => {
+        s.userDataStore.updateUser(idOfUser,User(userData.mail,
+          userData.password,
+          userData.firstName,
+          userData.lastName,
+          birthDate = userData.birthDate,
+          groupName = userData.groupName,
+          status = userData.status,
+          hireDate = userData.hireDate,
+          picture = finalUrlPicture,
+          phone = userData.phone,
+          cloudLinks = listOfPapersWithNames,
+          isActive = userData.isActive,
+          timeZone = userData.timeZone))
+
+        Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate")
+      })
+  }
+
+  def getLocalTimeZoneId(request : Request[AnyContent]) : String = {
+    val acceptLanguage = request.headers.get("Accept-Language")
+    val stringLocale = acceptLanguage.get.substring(0,acceptLanguage.get.indexOf(","))
+    val locale : Locale = new Locale(stringLocale.substring(0,stringLocale.indexOf("-")),stringLocale.substring(stringLocale.indexOf("-")+1,stringLocale.length))
+    val calendar : Calendar = Calendar.getInstance(locale)
+    val clientTimeZone : TimeZone = calendar.getTimeZone
+    val localTimeZoneId : String = clientTimeZone.getID
+    localTimeZoneId
+  }
 }

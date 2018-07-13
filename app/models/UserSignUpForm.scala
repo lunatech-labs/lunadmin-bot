@@ -2,13 +2,14 @@ package models
 
 import play.api.libs.json.Json
 
-case class UserForm (
+case class UserSignUpForm (
    mail : String,
    password : String,
    firstName : String,
    lastName : String
+
 )
 
-object UserForm {
-  implicit val fmt = Json.format[UserForm]
+object UserSignUpForm {
+  implicit val fmt = Json.format[UserSignUpForm]
 }

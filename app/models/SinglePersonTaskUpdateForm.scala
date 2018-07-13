@@ -11,7 +11,8 @@ case class SinglePersonTaskUpdateForm (
                       status : String,
                       selectSingleTask : String,
                       alertNumbers : List[Int],
-                      alertSelects : List[String]
+                      alertSelects : List[String],
+                      isActive : Boolean
                     )
 
 object SinglePersonTaskUpdateForm {
@@ -22,7 +23,8 @@ object SinglePersonTaskUpdateForm {
               status : String,
               selectSingleTask : String,
               alertNumbers : List[Int],
-              alertSelects : List[String]) = {
+              alertSelects : List[String],
+              isActive : Boolean) = {
     SinglePersonTaskUpdateForm(
       description,
       ZonedDateTime.ofInstant(startDate.toInstant, ZoneId.of("UTC")),
@@ -31,7 +33,8 @@ object SinglePersonTaskUpdateForm {
       status,
       selectSingleTask,
       alertNumbers,
-      alertSelects
+      alertSelects,
+      isActive
     )
   }
 
@@ -44,6 +47,7 @@ object SinglePersonTaskUpdateForm {
       tf.status,
       tf.selectSingleTask,
       tf.alertNumbers,
-      tf.alertSelects
+      tf.alertSelects,
+      tf.isActive
     ))
 }

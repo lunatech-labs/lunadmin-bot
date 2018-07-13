@@ -1,6 +1,6 @@
 package store
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import models._
 import play.api.{Configuration, Logger}
 import play.modules.reactivemongo.ReactiveMongoApi
@@ -11,22 +11,11 @@ import reactivemongo.play.json.collection.JSONCollection
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 
+@Singleton
 class TaskCategoryDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Configuration)(implicit ec: ExecutionContext) {
   private val taskCategoryCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("taskCategory"))
   import reactivemongo.play.json.ImplicitBSONHandlers._
   val listOfBaseTaskCategory = conf.underlying.getStringList("taskCategory.default.tags")
-
-//  // function to insert the Base User Group if they does not exist in the MongoDB
-//  def initializeUserGroupData() = {
-//    val listOfExistingUserGroup = findAllUserGroupForCheck().map(f => f.map(element => element.name))
-//    listOfExistingUserGroup.map{listExisting =>
-//      listOfBaseUserGroup.forEach{element =>
-//        if(!listExisting.contains(element)){
-//          insertUserGroup(UserGroup(name = element))
-//        }
-//      }
-//    }
-//  }
 
   def insertTaskCategory(taskCategory : TaskCategory) = {
     val javaDoc = TaskCategory.fmt.writes(taskCategory)

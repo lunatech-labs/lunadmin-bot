@@ -4,6 +4,7 @@ import java.time.Clock
 import controllers.Starter
 import play.api.Configuration
 import services.{ApplicationTimer, AtomicCounter, Counter}
+import store.{TaskCategoryDataStore, TaskDataStore, UserDataStore, UserGroupDataStore}
 
 /**
  * This class is a Guice module that tells Guice how to bind several
@@ -26,6 +27,10 @@ class Module extends AbstractModule {
     // Set AtomicCounter as the implementation for Counter.
     bind(classOf[Counter]).to(classOf[AtomicCounter])
 
+    bind(classOf[UserDataStore]).asEagerSingleton()
+    bind(classOf[TaskDataStore]).asEagerSingleton()
+    bind(classOf[TaskCategoryDataStore]).asEagerSingleton()
+    bind(classOf[UserGroupDataStore]).asEagerSingleton()
     bind(classOf[Starter]).asEagerSingleton()
   }
 
