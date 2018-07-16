@@ -1,6 +1,13 @@
 @import scala.concurrent.ExecutionContext
+@import java.lang.ProcessBuilder.Redirect
 @(list : List[UserDescription], page : Int, pageSize : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash : Flash)
-
+@{
+    if(session.get("status").isDefined){
+        if(session.get("status").get != "Admin"){
+            routes.HomeController.index()
+        }
+    }
+}
 
 
 @main("LunAdmin", assetsFinder,session) {

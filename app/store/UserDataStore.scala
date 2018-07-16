@@ -3,7 +3,7 @@ package store
 import java.time.LocalDate
 
 import javax.inject.{Inject, Singleton}
-import models.{SinglePersonTask, TaskDescription, User, UserDescription}
+import models._
 import play.api.{Configuration, Logger}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.{Cursor, QueryOpts}
@@ -83,6 +83,14 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     )
   }
 
+  def findUserByMail(mail : String) : Future[Option[User]] = {
+    val query = Json.obj("isActive" -> true,"mail" -> mail)
+    userCollection.flatMap(
+      _.find(query)
+        .cursor[User]()
+        .headOption
+    )
+  }
 
   def addUser(user : User) = {
     val javaDoc = Json.obj(
@@ -152,5 +160,4 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))
     userCollection.map(c => c.update(selectUpdate,updateQuery,multi = true))
   }
-
 }

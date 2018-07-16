@@ -1,6 +1,5 @@
 package controllers
 
-import java.time.{LocalDate, ZonedDateTime}
 import java.util.{Calendar, Locale, TimeZone}
 
 import javax.inject._
@@ -15,9 +14,6 @@ import play.api.data.Forms._
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
-import java.util.Date
-
-import tools.DateUtils
 
 
 @Singleton
@@ -51,7 +47,10 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     )
   }
 
-  def userLogin() = Action { implicit request: Request[AnyContent] =>
+  def userLogin() = Action.async { implicit request: Request[AnyContent] =>
+    var mail = ""
+    var password = ""
+
     val loginForm = Form(
       mapping(
         "mail" -> email,
@@ -60,12 +59,28 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     )
     loginForm.bindFromRequest().fold(
       formWithErrors => {
-        Ok("bad form !")
+        Redirect(routes.HomeController.index()).flashing("badForm" -> "badForm")
       },
       userData => {
-        Redirect(routes.HomeController.index()).withSession("mail" -> userData.mail)
-      }
+        mail = mail + userData.mail
+        password = password + userData.password
+        }
     )
+    s.userDataStore.findUserByMail(mail).map{u =>
+      if(u.isDefined){
+        if(u.get.password == password){
+          if(u.get.picture.isDefined){
+          Redirect(routes.HomeController.index()).withSession("firstName" -> u.get.firstName,"lastName" -> u.get.lastName,"picture" -> u.get.picture.get,"timeZone" -> u.get.timeZone,"status" -> u.get.status.get,"id" -> u.get._id)
+          }else{
+            Redirect(routes.HomeController.index()).withSession("firstName" -> u.get.firstName,"lastName" -> u.get.lastName,"timeZone" -> u.get.timeZone,"status" -> u.get.status.get,"id" -> u.get._id)
+          }
+        }else{
+          Redirect(routes.HomeController.index()).flashing("wrongPassword" -> "wrongPassword")
+        }
+      }else{
+        Redirect(routes.HomeController.index()).flashing("notFound" -> "notFound")
+      }
+    }
   }
 
   def userLogout() = Action {
@@ -90,15 +105,36 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     } yield (listCategory, listUser, listUserGroup)
 
 
-    res.map(e => Ok(views.html.taskAddForm(e._1, e._2, e._3, s.listOfTaskStatus)))
+    res.map(e => Ok(views.html.taskAddForm(orderListOfCategory(e._1), e._2, e._3, s.listOfTaskStatus)))
   }
+
+  def orderListOfCategory(listOfTaskCategory : List[TaskCategory]) : List[(String,List[String])] = {
+    var res : List[(String,List[String])] = List()
+    val listOfHeader = listOfTaskCategory.filter(p => p.isHeader == true)
+    listOfHeader.foreach{ f =>
+      res = res :+ (f.name,listOfTaskCategory.filter(p => p.idOfCategoryParent.isDefined && p.idOfCategoryParent.get == f._id).map(e => e.name))
+    }
+    val neutralTaskCategory = listOfTaskCategory.filter(p => p.idOfCategoryParent == None && p.isHeader == false)
+    res = res :+ ("",neutralTaskCategory.map(p => p.name))
+
+    res
+  }
+
 
   def goToAddUser() = Action.async {implicit request: Request[AnyContent] =>
     val res = for {
       listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
     } yield listUserGroup
 
-    res.map(e => Ok(views.html.userAddForm(e,listOfStatus,listOfPaperName)))
+    res.map{e =>
+      request.session.get("status").map { s =>
+        if(s == "Admin"){
+          Ok(views.html.userAddForm(e, listOfStatus, listOfPaperName))
+        }else{
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
   }
 
   def paginationDisplayTask() = Action { implicit request: Request[AnyContent] =>
@@ -136,8 +172,15 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
   }
 
   def displayUser(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
-    s.userDataStore.findAllUserDescription(page, pageSize).map(e =>
-      Ok(views.html.displayUsers(e, page, pageSize)))
+    s.userDataStore.findAllUserDescription(page, pageSize).map{e =>
+      request.session.get("status").map { s =>
+        if(s == "Admin"){
+          Ok(views.html.displayUsers(e, page, pageSize))
+        }else{
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
   }
 
   def deleteUser(idUser: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
@@ -268,7 +311,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
                                      hireDate = userData.hireDate,
                                      picture = finalUrlPicture,
                                      phone = userData.phone,
-                                     cloudLinks = listOfPapersWithNames,
+                                     cloudLinks = Some(listOfPapersWithNames),
                                      timeZone = userData.timeZone ))
 
         Redirect(routes.HomeController.displayUser(0,10)).flashing("success" -> "someSucess")
@@ -483,11 +526,19 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
           hireDate = userData.hireDate,
           picture = finalUrlPicture,
           phone = userData.phone,
-          cloudLinks = listOfPapersWithNames,
+          cloudLinks = Some(listOfPapersWithNames),
           isActive = userData.isActive,
           timeZone = userData.timeZone))
 
-        Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate")
+        if(request.session.get("id").get == idOfUser){
+          if(userData.picture.isDefined){
+            Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName,"lastName" -> userData.lastName,"picture" -> userData.picture.get,"timeZone" -> userData.timeZone,"status" -> userData.status.get,"id" -> idOfUser)
+          }else{
+            Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName,"lastName" -> userData.lastName,"timeZone" -> userData.timeZone,"status" -> userData.status.get,"id" -> idOfUser)
+          }
+        }else{
+          Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate")
+        }
       })
   }
 

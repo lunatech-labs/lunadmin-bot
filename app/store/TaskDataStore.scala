@@ -15,7 +15,7 @@ import reactivemongo.play.json.collection.JSONCollection
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Configuration)(implicit ec: ExecutionContext) {
+class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Configuration)(implicit ec: ExecutionContext) {
 
   private val taskCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("task"))
   import reactivemongo.play.json.ImplicitBSONHandlers._
@@ -41,6 +41,23 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf :Conf
     val query = Json.obj(
       "isActive" -> true,
       "description" -> Json.obj{"$regex" -> description}
+    )
+
+    taskCollection.flatMap(
+      _.find(query)
+        .options(QueryOpts(skipN = page * pageSize, pageSize))
+        .cursor[TaskDescription]()
+        .collect[List](pageSize, Cursor.FailOnError[List[TaskDescription]]())
+    )
+  }
+
+  def findTaskOfAUser(idOfUser: String, groupName : List[String],page : Int, pageSize : Int): Future[List[TaskDescription]] ={
+    val query = Json.obj(
+      "isActive" -> true,
+      "$or" -> Json.arr(
+        Json.obj( "employeeId" -> idOfUser),
+        Json.obj("groupName" -> Json.obj("$in" -> groupName))
+      )
     )
 
     taskCollection.flatMap(

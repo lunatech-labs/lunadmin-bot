@@ -91,7 +91,11 @@
         @for(paper <- listOfRequiredPaper){
             <div class="form-group">
                 <label for="paper@paper.hashCode()">@paper (You can do it Later)</label>
-                <input type="url" class="form-control" value="@user.cloudLinks.find(e => e._1 == paper).get._2" name="paper@paper.hashCode()" id="paper@paper.hashCode()" pattern="https://.*" placeholder="https://....." >
+                @if(user.cloudLinks.isDefined){
+                    <input type="url" class="form-control" value="@user.cloudLinks.get.find(e => e._1 == paper).get._2" name="paper@paper.hashCode()" id="paper@paper.hashCode()" pattern="https://.*" placeholder="https://....." >
+                }else{
+                    <input type="url" class="form-control" name="paper@paper.hashCode()" id="paper@paper.hashCode()" pattern="https://.*" placeholder="https://....." >
+                }
             </div>
         }
 

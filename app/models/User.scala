@@ -21,7 +21,7 @@ case class User(
                  hireDate : LocalDate,
                  picture : Option[String] = None, // link
                  phone : Option[String] = None, // pour le +33 au cas ou
-                 cloudLinks : List[(String,String)],
+                 cloudLinks : Option[List[(String,String)]] = None,
                  isActive : Boolean = true,
                  timeZone : String = "Europe/Paris"
 ){

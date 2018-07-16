@@ -1,16 +1,15 @@
 package models
 
-import play.api.Logger
 import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID
-import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
 
 
 
 case class TaskCategory (
                           _id : String = BSONObjectID.generate().stringify ,
                           name : String,
-                          idOfCategoryParent : Option[String] = None
+                          idOfCategoryParent : Option[String] = None,
+                          isHeader : Boolean
 )
 
 object TaskCategory {
