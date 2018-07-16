@@ -34,7 +34,8 @@ class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore,
     taskCategoryDataStore.initializeListOfBaseTaskCategory()
     taskCategoryDataStore.initializeTaskCategoryData()
 
-    userDataStore.addUser(User(mail = "LunAdmin@gmail.com",password = "admin",firstName = "Admin",lastName = "Lunatech",birthDate = LocalDate.of(1111,11,11),hireDate = LocalDate.of(1111,11,11),status = Some("Admin"),picture = Some("\uFEFFhttps://upload.wikimedia.org/wikipedia/en/thumb/7/7d/Lenna_%28test_image%29.png/220px-Lenna_%28test_image%29.png")))
+    userDataStore.addUser(User(mail = "LunAdmin@gmail.com",password = "admin",firstName = "Admin",lastName = "Lunatech",status = Some("Admin"),picture = Some("\uFEFFhttps://upload.wikimedia.org/wikipedia/en/thumb/7/7d/Lenna_%28test_image%29.png/220px-Lenna_%28test_image%29.png")))
+
   }
 
 

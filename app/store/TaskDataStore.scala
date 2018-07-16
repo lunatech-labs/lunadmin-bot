@@ -30,6 +30,19 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     )
   }
 
+  private def findAllDescriptionForCheck() : Future[List[TaskDescription]] = {
+    val query = BSONDocument("isActive" -> true)
+    taskCollection.flatMap(
+      _.find(query)
+        .cursor[TaskDescription]()
+        .collect[List](-1, Cursor.FailOnError[List[TaskDescription]]())
+    )
+  }
+
+  def findNumberOfPage(pageSize : Int) : Future[Int] = {
+    findAllDescriptionForCheck().map(e => Math.round(e.size/pageSize) )
+  }
+
   def findTaskDescriptionByID(id : String) : Future[Option[TaskDescription]] = {
     val query = BSONDocument("isActive" -> true,"_id" -> BSONDocument("$regex" -> id))
     val cursor : Future[Cursor[TaskDescription]] = taskCollection.map(f => f.find(query).cursor[TaskDescription]())

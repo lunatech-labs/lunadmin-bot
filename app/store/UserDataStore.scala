@@ -73,6 +73,10 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     )
   }
 
+  def findNumberOfPage(pageSize : Int) : Future[Int] = {
+    findEveryUserDescription().map(e => Math.round(e.size/pageSize) )
+  }
+
   def findUserDescriptionByUserGroup(userGroupName : String) : Future[List[UserDescription]] = {
     val query = Json.obj("isActive" -> true,"groupName" -> userGroupName)
 
@@ -99,10 +103,10 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
       "password" -> user.password,
       "lastName" -> user.lastName,
       "firstName" -> user.firstName,
-      "birthDate" -> User.dateFormatter.writes(user.birthDate),
+      "birthDate" -> user.birthDate.map(User.dateFormatter.writes),
       "groupName" -> user.groupName,
       "status" -> user.status,
-      "hireDate" -> User.dateFormatter.writes(user.hireDate),
+      "hireDate" -> user.hireDate.map(User.dateFormatter.writes),
       "picture" -> user.picture,
       "phone" -> user.phone,
       "cloudLinks" -> user.cloudLinks,
@@ -118,10 +122,10 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
                               "password" -> user.password,
                               "lastName" -> user.lastName,
                               "firstName" -> user.firstName,
-                              "birthDate" -> User.dateFormatter.writes(user.birthDate),
+                              "birthDate" -> user.birthDate.map(User.dateFormatter.writes),
                               "groupName" -> user.groupName,
                               "status" -> user.status,
-                              "hireDate" -> User.dateFormatter.writes(user.hireDate),
+                              "hireDate" -> user.hireDate.map(User.dateFormatter.writes),
                               "picture" -> user.picture,
                               "phone" -> user.phone,
                               "cloudLinks" -> user.cloudLinks,

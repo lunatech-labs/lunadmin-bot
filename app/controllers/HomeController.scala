@@ -88,8 +88,12 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
   }
 
   def displayTasks(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
-    s.taskDataStore.findAllTaskDescription(page, pageSize).map(e =>
-      Ok(views.html.displayTasks(e,getLocalTimeZoneId(request), page, pageSize)))
+    val res = for{
+      allTask <-  s.taskDataStore.findAllTaskDescription(page, pageSize)
+      numberOfPage <- s.taskDataStore.findNumberOfPage(pageSize)
+    } yield (allTask,numberOfPage)
+
+    res.map{e => Ok(views.html.displayTasks(e._1,getLocalTimeZoneId(request), page, pageSize,e._2))}
   }
 
   def deleteTask(idTask: String,taskType : String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
@@ -172,10 +176,15 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
   }
 
   def displayUser(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
-    s.userDataStore.findAllUserDescription(page, pageSize).map{e =>
+    val res = for {
+     listUser <- s.userDataStore.findAllUserDescription(page, pageSize)
+      numberOfPage <- s.userDataStore.findNumberOfPage(pageSize)
+    } yield (listUser,numberOfPage)
+
+    res.map{e =>
       request.session.get("status").map { s =>
         if(s == "Admin"){
-          Ok(views.html.displayUsers(e, page, pageSize))
+          Ok(views.html.displayUsers(e._1, page, pageSize,e._2))
         }else{
           Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
         }
@@ -282,10 +291,10 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text,
-        "birthDate" -> localDate,
+        "birthDate" -> optional(localDate),
         "groupName" -> optional(list(nonEmptyText)),
         "status" -> optional(text),
-        "hireDate" -> localDate,
+        "hireDate" -> optional(localDate),
         "picture" -> optional(text),
         "phone" -> optional(text),
         "cloudLinks" -> list(text),
@@ -498,10 +507,10 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text,
-        "birthDate" -> localDate,
+        "birthDate" -> optional(localDate),
         "groupName" -> optional(list(nonEmptyText)),
         "status" -> optional(text),
-        "hireDate" -> localDate,
+        "hireDate" -> optional(localDate),
         "picture" -> optional(text),
         "phone" -> optional(text),
         "cloudLinks" -> list(text),
