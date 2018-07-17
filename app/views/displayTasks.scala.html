@@ -27,7 +27,9 @@
         <div class="container">
             <div class="row">
             <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
-                <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+                @if(session.get("status").contains("Admin")){
+                    <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
+                }
             </div>
         </div>
         <input class="form-control" id="myInput" type="text" placeholder="Search..">

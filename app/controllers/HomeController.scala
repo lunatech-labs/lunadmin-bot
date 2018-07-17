@@ -39,10 +39,13 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     )
     userForm.bindFromRequest().fold(
       formWithErrors => {
-        Ok("bad form !")
+        Ok(views.html.index()).flashing("registerSuccess" -> "someSuccess")
       },
       userData => {
-        Ok(views.html.index())
+
+        val user = User(mail = userData.mail,password = userData.password,firstName = userData.firstName,lastName = userData.lastName)
+        s.userDataStore.addUser(user)
+        Redirect(routes.HomeController.displayTasks(0,10)).withSession("firstName" -> user.firstName,"lastName" -> user.lastName,"timeZone" -> user.timeZone,"status" -> user.status.get,"id" -> user._id)
       }
     )
   }
@@ -87,14 +90,32 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     Redirect(routes.HomeController.index()).withNewSession
   }
 
-  def displayTasks(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
-    val res = for{
-      allTask <-  s.taskDataStore.findAllTaskDescription(page, pageSize)
-      numberOfPage <- s.taskDataStore.findNumberOfPage(pageSize)
-    } yield (allTask,numberOfPage)
 
-    res.map{e => Ok(views.html.displayTasks(e._1,getLocalTimeZoneId(request), page, pageSize,e._2))}
+  def displayTasks(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
+    val idOfUser = request.session.get("id").getOrElse("none")
+    val timeZone = request.session.get("timeZone").getOrElse("Europe/Paris")
+
+    val res = for{
+      allTaskForAdmin <-  s.taskDataStore.findAllTaskDescription(page, pageSize)
+      numberOfPageForAdmin <- s.taskDataStore.findNumberOfPage(pageSize)
+      allTaskForUser <- {val groupName = s.userDataStore.findUserById(idOfUser).map(e => e.flatMap(u => u.groupName))
+                          groupName.flatMap(e => s.taskDataStore.findTaskOfAUser(idOfUser,e.getOrElse(List()),page,pageSize))}
+      numberOfPageForUser <- {val groupName = s.userDataStore.findUserById(idOfUser).map(e => e.flatMap(u => u.groupName))
+                              groupName.flatMap(e => s.taskDataStore.findNumberOfPageOfAUser(idOfUser,e.getOrElse(List()),pageSize))}
+    } yield (allTaskForAdmin,numberOfPageForAdmin,allTaskForUser,numberOfPageForUser)
+
+    res.map{e =>
+      request.session.get("status").map { status =>
+        if(status == "Admin"){
+          Ok(views.html.displayTasks(e._1,timeZone, page, pageSize,e._2))
+        }else{
+          Ok(views.html.displayTasks(e._3,timeZone, page, pageSize,e._4))
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
   }
+
+
 
   def deleteTask(idTask: String,taskType : String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
     s.taskDataStore.deleteTask(idTask,taskType)
@@ -108,17 +129,24 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
       listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
     } yield (listCategory, listUser, listUserGroup)
 
-
-    res.map(e => Ok(views.html.taskAddForm(orderListOfCategory(e._1), e._2, e._3, s.listOfTaskStatus)))
+    res.map{e =>
+      request.session.get("status").map { status =>
+        if(status == "Admin"){
+          Ok(views.html.taskAddForm(orderListOfCategory(e._1), e._2, e._3, s.listOfTaskStatus))
+        }else{
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
   }
 
   def orderListOfCategory(listOfTaskCategory : List[TaskCategory]) : List[(String,List[String])] = {
     var res : List[(String,List[String])] = List()
-    val listOfHeader = listOfTaskCategory.filter(p => p.isHeader == true)
+    val listOfHeader = listOfTaskCategory.filter(p => p.isHeader)
     listOfHeader.foreach{ f =>
       res = res :+ (f.name,listOfTaskCategory.filter(p => p.idOfCategoryParent.isDefined && p.idOfCategoryParent.get == f._id).map(e => e.name))
     }
-    val neutralTaskCategory = listOfTaskCategory.filter(p => p.idOfCategoryParent == None && p.isHeader == false)
+    val neutralTaskCategory = listOfTaskCategory.filter(p => p.idOfCategoryParent.isEmpty && !p.isHeader)
     res = res :+ ("",neutralTaskCategory.map(p => p.name))
 
     res
@@ -182,8 +210,8 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     } yield (listUser,numberOfPage)
 
     res.map{e =>
-      request.session.get("status").map { s =>
-        if(s == "Admin"){
+      request.session.get("status").map { status =>
+        if(status == "Admin"){
           Ok(views.html.displayUsers(e._1, page, pageSize,e._2))
         }else{
           Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
@@ -229,6 +257,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         "alertSelects" -> default(list(text),listOfAlertSelects)
       )(TaskForm.newFrom)(TaskForm.toTuple)
     )
+
     taskForm.bindFromRequest().fold(
       formWithErrors => {
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
@@ -329,6 +358,9 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
 
   def displayFullDetailedTask(idOfTask: String) = Action.async { implicit request: Request[AnyContent] =>
+    val idOfUser = request.session.get("id").getOrElse("none")
+    val timeZone = request.session.get("timeZone").getOrElse("Europe/Paris")
+
     val res = for {
       listCategory <- s.taskCategoryDataStore.findAllTaskCategory()
       listUser <- s.userDataStore.findEveryUserDescription()
@@ -336,18 +368,49 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
       taskDescription <- s.taskDataStore.findTaskDescriptionByID(idOfTask)
       singleTask <- s.taskDataStore.findSinglePersonTaskById(idOfTask)
       groupedTask <- s.taskDataStore.findGroupedPersonTaskById(idOfTask)
-    } yield (listCategory, listUser, listUserGroup, taskDescription, singleTask, groupedTask)
+      groupNameOfUser <- s.userDataStore.findUserById(idOfUser).map(e => e.flatMap(u => u.groupName))
+    } yield (listCategory, listUser, listUserGroup, taskDescription, singleTask, groupedTask, groupNameOfUser)
 
-    res.map { e =>
-      if (e._4.isDefined && e._4.get.`type` == TaskType.SINGLE) {
-        Ok(views.html.singleTaskDetailAndUpdate(e._5.get, e._1, e._2, e._3, s.listOfTaskStatus, getLocalTimeZoneId(request)))
-      } else {
-        Ok(views.html.groupedTaskDetailAndUpdate(e._6.get, e._1, e._2, e._3, s.listOfTaskStatus, getLocalTimeZoneId(request)))
-      }
+    res.map{e =>
+      request.session.get("status").map { status =>
+        if(status == "Admin"){
+          if (e._4.isDefined && e._4.get.`type` == TaskType.SINGLE) {
+            Ok(views.html.singleTaskDetailAndUpdate(e._5.get, e._1, e._2, e._3, s.listOfTaskStatus, timeZone))
+          } else {
+            Ok(views.html.groupedTaskDetailAndUpdate(e._6.get, e._1, e._2, e._3, s.listOfTaskStatus, timeZone))
+          }
+        }else{
+          // if the task is a single task
+          if (e._4.isDefined && e._4.get.`type` == TaskType.SINGLE) {
+            // if the user is assigned to this task
+            if(s.userDataStore.checkIfSingleTaskIsAssignedToUser(idOfUser,e._5.get)){
+              Ok(views.html.singleTaskDetailAndUpdate(e._5.get, e._1, e._2, e._3, s.listOfTaskStatus, timeZone))
+            }
+            // if not , it means he is trying to access a task he has no right on
+            else{
+              Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+            }
+          }
+          // if the task is a grouped task
+          else {
+            val bool = e._7.map { list =>
+              s.userDataStore.checkIfUserIsPartOfGroupedTask(list, e._6.get)
+            }
+            if(bool.getOrElse(false)){
+              Ok(views.html.groupedTaskDetailAndUpdate(e._6.get, e._1, e._2, e._3, s.listOfTaskStatus, timeZone))
+            }else{
+              Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+            }
+          }
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
     }
+
   }
 
   def displayFullDetailedUser(idOfUser: String) = Action.async { implicit request: Request[AnyContent] =>
+    val timeZone = request.session.get("timeZone").getOrElse("Europe/Paris")
+
     val res = for {
       user <- s.userDataStore.findUserById(idOfUser)
       listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
@@ -355,7 +418,13 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
     res.map { e =>
       if(e._1.isDefined){
-        Ok(views.html.userDetailAndUpdate(e._1.get,e._2,listOfStatus,listOfPaperName, getLocalTimeZoneId(request)))
+        request.session.get("status").map { status =>
+          if(status == "Admin"){
+            Ok(views.html.userDetailAndUpdate(e._1.get,e._2,listOfStatus,listOfPaperName, timeZone))
+          }else{
+            Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+          }
+        }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
       }else{
         Redirect(routes.HomeController.displayUser(0,10)).flashing("userNotFound" -> "somefail")
       }
@@ -549,15 +618,5 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
           Redirect(routes.HomeController.displayUser(0,10)).flashing("update" -> "someUpdate")
         }
       })
-  }
-
-  def getLocalTimeZoneId(request : Request[AnyContent]) : String = {
-    val acceptLanguage = request.headers.get("Accept-Language")
-    val stringLocale = acceptLanguage.get.substring(0,acceptLanguage.get.indexOf(","))
-    val locale : Locale = new Locale(stringLocale.substring(0,stringLocale.indexOf("-")),stringLocale.substring(stringLocale.indexOf("-")+1,stringLocale.length))
-    val calendar : Calendar = Calendar.getInstance(locale)
-    val clientTimeZone : TimeZone = calendar.getTimeZone
-    val localTimeZoneId : String = clientTimeZone.getID
-    localTimeZoneId
   }
 }

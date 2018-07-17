@@ -159,6 +159,20 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     }
   }
 
+  def checkIfSingleTaskIsAssignedToUser(idOfUser : String, task : SinglePersonTask): Boolean = {
+    if(task.employeeId == idOfUser)
+      true
+    else{false}
+  }
+
+  def checkIfUserIsPartOfGroupedTask(groupName : List[String] ,task : GroupedTask): Boolean = {
+    if(groupName.intersect(task.groupName).nonEmpty){
+      true
+    }else{
+      false
+    }
+  }
+
   def removeUserGroupFromUser(userGroupName : String) = {
     val selectUpdate = Json.obj()
     val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))

@@ -30,7 +30,7 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     )
   }
 
-  private def findAllDescriptionForCheck() : Future[List[TaskDescription]] = {
+  private def findAllDescriptionForCount() : Future[List[TaskDescription]] = {
     val query = BSONDocument("isActive" -> true)
     taskCollection.flatMap(
       _.find(query)
@@ -40,7 +40,27 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
   }
 
   def findNumberOfPage(pageSize : Int) : Future[Int] = {
-    findAllDescriptionForCheck().map(e => Math.round(e.size/pageSize) )
+    findAllDescriptionForCount().map(e => Math.round(e.size/pageSize) )
+  }
+
+  private def findAllTaskOfAUserForCount(idOfUser: String, groupName : List[String]) : Future[List[TaskDescription]] = {
+    val query = Json.obj(
+      "isActive" -> true,
+      "$or" -> Json.arr(
+        Json.obj( "employeeId" -> idOfUser),
+        Json.obj("groupName" -> Json.obj("$in" -> groupName))
+      )
+    )
+
+    taskCollection.flatMap(
+      _.find(query)
+        .cursor[TaskDescription]()
+        .collect[List](-1, Cursor.FailOnError[List[TaskDescription]]())
+    )
+  }
+
+  def findNumberOfPageOfAUser(idOfUser: String, groupName : List[String], pageSize : Int) : Future[Int] = {
+    findAllTaskOfAUserForCount(idOfUser,groupName).map(e => Math.round(e.size/pageSize) )
   }
 
   def findTaskDescriptionByID(id : String) : Future[Option[TaskDescription]] = {

@@ -31,13 +31,12 @@
     @if(session.get("firstName").isEmpty){
     <div class="container">
         <div id="loginbox" style="margin-top:50px;" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
-            <div class="panel panel-info" >
-                <div class="panel-heading">
+            <div id="logInContainer" class="panel panel-info" >
+                <div  class="panel-heading">
                     <div class="panel-title">Sign In</div>
                 </div>
 
                 <div style="padding-top:30px" class="panel-body" >
-
                     <form method="post" action="@routes.HomeController.userLogin()" class="form-horizontal" >
                         @helper.CSRF.formField
                         <div style="margin-bottom: 25px" class="input-group">
@@ -55,8 +54,47 @@
                             <button type="submit" class="btn btn-primary">Login</button>
 
                         </div>
-
                     </form>
+                    <button type="button" style="float:Right" onclick="showRegisterHideLogIn()" class="btn btn-primary">Register</button>
+                </div>
+            </div>
+
+            <div id="registerContainer" class="panel panel-info" style="display: none;">
+                <div  class="panel-heading" >
+                    <div class="panel-title">Register</div>
+                </div>
+
+                <div  style="padding-top:30px" class="panel-body" >
+
+                    <form method="post" action="@routes.HomeController.userSignUp()" class="form-horizontal" >
+                        @helper.CSRF.formField
+
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+                            <input id="register-firstname" type="text" class="form-control" name="firstName" placeholder="first name">
+                        </div>
+
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+                            <input id="register-lastname" type="text" class="form-control" name="lastName" placeholder="last name">
+                        </div>
+
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
+                            <input id="register-username" type="email" class="form-control" name="mail" placeholder="email">
+                        </div>
+
+                        <div style="margin-bottom: 25px" class="input-group">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
+                            <input id="register-password" type="password" class="form-control" name="password" placeholder="password">
+                        </div>
+
+                        <div style="margin-top:10px" class="form-group">
+                                <!-- Button -->
+                            <button style="float:Right" type="submit" class="btn btn-primary">Register</button>
+                        </div>
+                    </form>
+                    <button onclick="showLogInHideRegister()" class="btn btn-primary">Login</button>
                 </div>
             </div>
         </div>
@@ -65,4 +103,24 @@
     }else{
         <p class="container">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero. </p>
     }
+
+    <script>
+        function showLogInHideRegister() {
+            var logInContainer = document.getElementById("logInContainer");
+            var registerContainer = document.getElementById("registerContainer");
+
+            logInContainer.style.display = "block";
+            registerContainer.style.display = "none";
+        }
+
+        function showRegisterHideLogIn() {
+            var logInContainer = document.getElementById("logInContainer");
+            var registerContainer = document.getElementById("registerContainer");
+
+            logInContainer.style.display = "none";
+            registerContainer.style.display = "block";
+        }
+
+    </script>
+
 }
