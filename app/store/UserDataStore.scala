@@ -159,6 +159,20 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     }
   }
 
+  def findEveryExistingMailToCheckForRegistering(idOfUser : Option[String] = None) : Future[List[String]] = {
+    var query = Json.obj()
+    if(idOfUser.isDefined){
+      query = Json.obj("mail" -> Json.obj("$ne" -> idOfUser))
+    }
+
+    val projection = Json.obj("mail" -> 1)
+    userCollection.flatMap(
+      _.find(query,projection)
+        .cursor[mailTemplate]()
+        .collect[List](-1, Cursor.FailOnError[List[mailTemplate]]())
+    ).map(l => l.map(e => e.mail))
+  }
+
   def checkIfSingleTaskIsAssignedToUser(idOfUser : String, task : SinglePersonTask): Boolean = {
     if(task.employeeId == idOfUser)
       true

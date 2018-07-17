@@ -24,6 +24,11 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 You can't access this page !
                 </div><br/>
+        }else if(flash.get("wrongMail").isDefined) {
+                <div class="alert alert-danger alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                Error During Registration - Mail  Already Exist !
+                </div><br/>
         }
     }
 

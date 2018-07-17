@@ -8,7 +8,12 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Failure!</strong> Your form ain't good !
                 </div>
-        }else{
+        }else if(flash.get("wrongMail").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure!</strong> Wrong Mail - Already Exist !
+                </div>
+        } else{
                     <br/>
         }
     }
@@ -68,7 +73,7 @@
         }
         </select>
 
-        <label for="groupName">Select a/multiple Group(s) :</label>
+        <label for="groupName[]">Select a/multiple Group(s) :</label>
         <select class="form-control" id="groupName[]" name="groupName[]" multiple >
         @for(group <- listUserGroup){
             @if(user.groupName.isDefined){
