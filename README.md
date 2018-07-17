@@ -8,7 +8,7 @@ LunAdmin comes from the need to centralize various tasks that were dispersed acr
 
 ## What techs do we use.
 
-LunAdmin is based on the play framework and use Mongodb to store and retrieve data via ReactivMongo. It is using Http Requests to communicate. 
+LunAdmin is based on the play framework and uses Mongodb to store and retrieve data via ReactivMongo. It is using Http Requests to communicate. 
 
 ## Implemented Features
 

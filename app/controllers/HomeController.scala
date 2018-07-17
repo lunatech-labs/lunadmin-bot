@@ -46,16 +46,28 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
           Ok(views.html.index()).flashing("registerSuccess" -> "someSuccess")
         },
         userData => {
-          Logger.info(list.toString)
           val user = User(mail = userData.mail, password = userData.password, firstName = userData.firstName, lastName = userData.lastName)
           if (list.contains(user.mail)) {
             Redirect(routes.HomeController.index()).flashing("wrongMail" -> "mail already exist")
           } else {
             s.userDataStore.addUser(user)
-            Redirect(routes.HomeController.displayTasks(0, 10)).withSession("firstName" -> user.firstName, "lastName" -> user.lastName, "timeZone" -> user.timeZone, "status" -> user.status.get, "id" -> user._id)
+            Redirect(routes.HomeController.goToUserProfile()).withSession("firstName" -> user.firstName, "lastName" -> user.lastName, "timeZone" -> user.timeZone, "status" -> user.status.get, "id" -> user._id)
           }
         }
       )
+    }
+  }
+
+  def goToUserProfile() = Action.async { implicit request: Request[AnyContent] =>
+    val idOfUser = request.session.get("id").getOrElse("none")
+    val res = s.userDataStore.findUserById(idOfUser)
+
+    res.map{ user =>
+      if(user.isDefined){
+        Ok(views.html.viewUserProfil(user.get))
+      }else{
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
     }
   }
 
