@@ -22,7 +22,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
   val listOfStatus : List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
   val listOfPaperName : List[String] = conf.underlying.getStringList("papersCategory.default.tags").asScala.toList
-
+  val listOfTimeZone : List[String] = conf.underlying.getStringList("timeZone.default.tags").asScala.toList
 
   def index = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index())
@@ -420,7 +420,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
       if(e._1.isDefined){
         request.session.get("status").map { status =>
           if(status == "Admin"){
-            Ok(views.html.userDetailAndUpdate(e._1.get,e._2,listOfStatus,listOfPaperName, timeZone))
+            Ok(views.html.userDetailAndUpdate(e._1.get,e._2,listOfStatus,listOfPaperName, timeZone, listOfTimeZone))
           }else{
             Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
           }

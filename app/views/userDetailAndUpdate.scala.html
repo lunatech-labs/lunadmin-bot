@@ -1,4 +1,4 @@
-@(user: User,listUserGroup : List[UserGroup], listStatus : List[String] , listOfRequiredPaper : List[String], localTimeZoneId : String)(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
+@(user: User,listUserGroup : List[UserGroup], listStatus : List[String] , listOfRequiredPaper : List[String], localTimeZoneId : String, listOfTimeZone : List[String])(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -101,7 +101,18 @@
 
         <input type="text" value="@user.isActive" name="isActive" hidden>
 
-        <input type="text" value="@user.timeZone" name="timeZone" hidden>
+        <div class="form-group">
+            <label for="timeZone">Select a TimeZone : </label>
+            <select class="form-control" id="timeZone" name="timeZone" >
+            @for(timeZ <- listOfTimeZone){
+                @if(user.timeZone == timeZ){
+                    <option value="@timeZ" selected="selected">@timeZ</option>
+                }else{
+                    <option value="@timeZ" >@timeZ</option>
+                }
+            }
+            </select>
+        </div>
 
         <button type="submit" class="btn btn-primary">Update User</button>
     </form>

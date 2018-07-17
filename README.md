@@ -13,11 +13,13 @@ LunAdmin is based on the play framework and use Mongodb to store and retrieve da
 ## Implemented Features
 
 Listing/update/delete/add of Task / Users   ( Admin Mode Only )
+Authentification / user rights
 
-Since registering is not implemented yet : \
-A special test account is created on launch of the service \
+A special test account is created on launch of the service to test the Admin part\
 mail : LunAdmin@gmail.com \
 pass : admin
+
+For the user part with low rights, just register on the Home page
 
 ## Author
 
