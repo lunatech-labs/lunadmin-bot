@@ -142,8 +142,14 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
 
   def deleteTask(idTask: String, taskType: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
-    s.taskDataStore.deleteTask(idTask, taskType)
-    Redirect(routes.HomeController.displayTasks(page, pageSize))
+    request.session.get("status").map{ status =>
+      if (status == "Admin") {
+        s.taskDataStore.deleteTask(idTask, taskType)
+        Redirect(routes.HomeController.displayTasks(page, pageSize)).flashing("taskDeleted" -> "The Task Has Been deleted !")
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
   }
 
   def goToAddTask() = Action.async { implicit request: Request[AnyContent] =>
@@ -245,8 +251,20 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
   }
 
   def deleteUser(idUser: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
-    s.userDataStore.deleteUser(idUser)
-    Redirect(routes.HomeController.displayUser(page, pageSize))
+    request.session.get("status").map{ status =>
+      if (status == "Admin") {
+        if(idUser == request.session.get("id").getOrElse("none")){
+          s.userDataStore.deleteUser(idUser)
+          Redirect(routes.HomeController.userLogout())
+        }else{
+          s.userDataStore.deleteUser(idUser)
+          Redirect(routes.HomeController.displayUser(page, pageSize)).flashing("userDeleted" -> "The User Has Been Deleted")
+        }
+
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
   }
 
   def addTask() = Action { implicit request: Request[AnyContent] =>
@@ -317,7 +335,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     )
   }
 
-  def addUser() = Action { implicit request: Request[AnyContent] =>
+  def addUser() = Action.async { implicit request: Request[AnyContent] =>
     val papers = request.body.asFormUrlEncoded.map { x =>
       x.filterKeys(k => k.startsWith("paper"))
     }
@@ -356,28 +374,38 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
       )(UserAddForm.apply)(UserAddForm.unapply)
     )
 
-    userForm.bindFromRequest().fold(
-      formWithErrors => {
-        Logger.info(formWithErrors.toString)
-        Logger.info(formWithErrors.errors.toString)
-        Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
-      },
-      userData => {
-        s.userDataStore.addUser(User(userData.mail,
-          userData.password,
-          userData.firstName,
-          userData.lastName,
-          birthDate = userData.birthDate,
-          groupName = userData.groupName,
-          status = userData.status,
-          hireDate = userData.hireDate,
-          picture = finalUrlPicture,
-          phone = userData.phone,
-          cloudLinks = Some(listOfPapersWithNames),
-          timeZone = userData.timeZone))
+    val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering()
 
-        Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
-      })
+    existingMails.map { list =>
+
+      userForm.bindFromRequest().fold(
+        formWithErrors => {
+          Logger.info(formWithErrors.toString)
+          Logger.info(formWithErrors.errors.toString)
+          Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
+        },
+        userData => {
+          if(list.contains(userData.mail)){
+            Redirect(routes.HomeController.goToAddUser()).flashing("mailAlreadyExist" -> "mailAlreadyExist")
+          }else{
+            s.userDataStore.addUser(User(userData.mail,
+              userData.password,
+              userData.firstName,
+              userData.lastName,
+              birthDate = userData.birthDate,
+              groupName = userData.groupName,
+              status = userData.status,
+              hireDate = userData.hireDate,
+              picture = finalUrlPicture,
+              phone = userData.phone,
+              cloudLinks = Some(listOfPapersWithNames),
+              timeZone = userData.timeZone))
+
+            Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
+          }
+
+        })
+    }
   }
 
 
@@ -615,14 +643,12 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering(Some(idOfUser))
 
     existingMails.map { list =>
-
       userForm.bindFromRequest().fold(
         formWithErrors => {
           Logger.info(formWithErrors.errors.toString)
           Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("failure" -> "someFailure")
         },
         userData => {
-
           if (list.contains(userData.mail)) {
             Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("wrongMail" -> "already exist")
           } else {

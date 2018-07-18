@@ -23,9 +23,14 @@
                 <strong>Sucess!</strong> The User has been updated !
                 </div><br/>
         }else if(flash.get("userNotFound").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Error!</strong> The User could not be found !
+                </div><br/>
+        }else if(flash.get("userDeleted").isDefined){
                 <div class="alert alert-success alert-dismissible">
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong>Sucess!</strong> The User could not be found !
+                <strong>Sucess!</strong> The User has been deleted !
                 </div><br/>
         }else{
                     <br/>

@@ -1,7 +1,7 @@
 @import scala.concurrent.ExecutionContext
-
 @import tools.DateUtils
 @import java.time.ZoneId
+
 @(list : List[TaskDescription],localZoneTimeId : String, page : Int, pageSize : Int, numberOfPage : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
@@ -16,6 +16,11 @@
                 <div class="alert alert-success alert-dismissible">
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Sucess!</strong> Your task has been updated !
+                </div><br/>
+        }else if(flash.get("taskDeleted").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success!</strong> The task has been deleted !
                 </div><br/>
         }else{
             <br/>

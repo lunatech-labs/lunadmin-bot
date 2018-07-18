@@ -8,6 +8,11 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Failure!</strong> Your form ain't good !
                 </div>
+        }else if(flash.get("mailAlreadyExist").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure!</strong> There is already an account with this mail !
+                </div>
         }else{
                     <br/>
         }

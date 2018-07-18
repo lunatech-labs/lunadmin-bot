@@ -160,17 +160,25 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
   }
 
   def findEveryExistingMailToCheckForRegistering(idOfUser : Option[String] = None) : Future[List[String]] = {
-    var query = Json.obj()
-    if(idOfUser.isDefined){
-      query = Json.obj("mail" -> Json.obj("$ne" -> idOfUser))
+    findUserById(idOfUser.getOrElse("none")).flatMap{optUser =>
+      optUser.map{ user =>
+        val query = Json.obj("mail" -> Json.obj("$ne" -> user.mail ))
+        val projection = Json.obj("mail" -> 1)
+        userCollection.flatMap(
+          _.find(query,projection)
+            .cursor[mailTemplate]()
+            .collect[List](-1, Cursor.FailOnError[List[mailTemplate]]())
+        ).map(l => l.map(e => e.mail))
+      }.getOrElse{
+        val query = Json.obj()
+        val projection = Json.obj("mail" -> 1)
+        userCollection.flatMap(
+          _.find(query,projection)
+            .cursor[mailTemplate]()
+            .collect[List](-1, Cursor.FailOnError[List[mailTemplate]]())
+        ).map(l => l.map(e => e.mail))
+      }
     }
-
-    val projection = Json.obj("mail" -> 1)
-    userCollection.flatMap(
-      _.find(query,projection)
-        .cursor[mailTemplate]()
-        .collect[List](-1, Cursor.FailOnError[List[mailTemplate]]())
-    ).map(l => l.map(e => e.mail))
   }
 
   def checkIfSingleTaskIsAssignedToUser(idOfUser : String, task : SinglePersonTask): Boolean = {
