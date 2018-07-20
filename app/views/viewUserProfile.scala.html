@@ -1,0 +1,71 @@
+@(user: User)(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
+
+@main("LunAdmin", assetsFinder,session) {
+
+    @{
+        if(flash.get("update").isDefined) {
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success!</strong>
+                Your profile has been updated !
+                </div>
+        }
+    }
+
+    @helper.CSRF.formField
+    <div class="form-group">
+        <p>First Name : @user.firstName</p>
+    </div>
+
+    <div class="form-group">
+        <p>Last Name : @user.lastName</p>
+    </div>
+
+    <div class="form-group">
+        <p>Mail : @user.mail</p>
+    </div>
+
+    <div class="form-group">
+        <p>Password : It's a secret</p>
+    </div>
+
+    <div class="form-group">
+        <p>Phone : @user.phone</p>
+    </div>
+
+    <div class="form-group">
+        <p>BirthDate: @user.birthDate.getOrElse("Not set yet")</p>
+    </div>
+
+    <div class="form-group">
+        <p>HireDate : @user.hireDate.getOrElse("Not set yet")</p>
+    </div>
+
+    <div class="form-group">
+        <p>User Group Associated : @{
+            var finalString = ""
+            val groupName = user.groupName.getOrElse(List())
+            for(e <- groupName){
+                finalString = finalString + e + " / "
+            }
+            finalString.dropRight(2)
+        } </p>
+    </div>
+
+
+    <div class="form-group">
+        <a href="@user.picture.map(p => assetsFinder.path(p)).getOrElse()">Profile Image</a>
+    </div>
+
+    @for(paper <- user.cloudPaths.getOrElse(List())){
+        <div class="form-group">
+            <a href="@assetsFinder.path(paper._2)">@paper._1</a>
+        </div>
+    }
+
+    <div class="form-group">
+        <p>TimeZone : @user.timeZone</p>
+    </div>
+
+    <a href="@routes.HomeController.goToEditUserProfile()" class="btn btn-primary">Edit Profile</a>
+}

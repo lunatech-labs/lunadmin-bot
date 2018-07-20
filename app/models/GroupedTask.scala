@@ -22,7 +22,7 @@ case class GroupedTask (
                          alert : List[(Long,String)],
                          `type`: TaskType = TaskType.GROUPED,
                          isActive : Boolean = true
-) extends Task(_id, description, startDate, endDate, status, category, alert, TaskType.GROUPED, isActive){
+) extends Task{
 
   override def getNameById(userList : List[User], groupList : List[UserGroup]): String = {
 

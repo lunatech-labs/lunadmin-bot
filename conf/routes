@@ -25,6 +25,8 @@ POST        /addUser                               controllers.HomeController.ad
 GET         /addUser                               controllers.HomeController.goToAddUser
 POST        /updateUser                            controllers.HomeController.updateUser(idOfUser : String)
 GET         /userProfile                           controllers.HomeController.goToUserProfile
+GET         /editUserProfile                       controllers.HomeController.goToEditUserProfile
+POST        /updateProfile                         controllers.HomeController.updateProfile
 
 POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
 POST        /paginationDT                          controllers.HomeController.paginationDisplayTask

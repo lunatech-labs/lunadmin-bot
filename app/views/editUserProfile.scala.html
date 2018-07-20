@@ -3,7 +3,7 @@
 @main("LunAdmin", assetsFinder,session) {
 
     @{
-        if(flash.get("failure").isDefined){
+        if(flash.get("badForm").isDefined){
                 <div class="alert alert-warning alert-dismissible">
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Failure!</strong> Your form ain't good !
@@ -13,22 +13,12 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Failure!</strong> Wrong Mail - Already Exist !
                 </div>
-        }else if(flash.get("badFileFormat").isDefined){
-                <div class="alert alert-warning alert-dismissible">
-                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong>Bad File Format!</strong> Only jpeg/png for the picture and png/jpeg/pdf for the administrativ papers !
-                </div>
-        }else if(flash.get("errorMissingFile").isDefined){
-                <div class="alert alert-warning alert-dismissible">
-                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-                <strong>Missing File!</strong>
-                </div>
         } else{
-                    <br/>
+         <br/>
         }
     }
 
-    <form method="post" enctype="multipart/form-data" action="@routes.HomeController.updateUser(user._id)">
+    <form method="post" action="@routes.HomeController.updateProfile()">
         @helper.CSRF.formField
         <div class="form-group">
             <label for="firstName">First Name</label>
@@ -60,28 +50,15 @@
 
         <div class="form-group">
             <label for="birthDate">Birth Date</label>
-            <input type="date" value="@user.birthDate" class="form-control" name="birthDate" id="birthDate" required>
+            <input type="date" value="@user.birthDate" class="form-control" name="birthDate" id="birthDate" >
         </div>
 
         <div class="form-group">
             <label for="hireDate">Hire Date</label>
-            <input type="date" class="form-control" value="@user.hireDate" name="hireDate" id="hireDate" required>
+            <input type="date" class="form-control" value="@user.hireDate" name="hireDate" id="hireDate" >
         </div>
 
-        <label for="status">Select a status :</label>
-        <select class="form-control" id="status" name="status" required>
-        @for(status <- listStatus){
-            @if(user.status.isDefined) {
-                @if(status == user.status.get) {
-                    <option value="@status" selected="selected">@status</option>
-                } else {
-                    <option value="@status" >@status</option>
-                }
-            }else{
-                <option value="@status" >@status</option>
-            }
-        }
-        </select>
+        <input type="text" name="status" value="@user.status" hidden>
 
         <label for="groupName[]">Select a/multiple Group(s) :</label>
         <select class="form-control" id="groupName[]" name="groupName[]" multiple >
@@ -100,24 +77,24 @@
 
         <div class="form-group">
             <label for="picture">Picture (You can do it Later) |
-                @if(user.picture.isDefined){
-                    <a href="@{user.picture.map(s => assetsFinder.path(s))}">Actual</a></label>
+                @if(user.picture.isDefined) {
+                    <a href="@{user.picture.map(s => assetsFinder.path(s))}">Actual</a>
                 }
+            </label>
             <input type="file" accept=".png, .jpeg" class="form-control" name="picture" id="picture" >
         </div>
 
 
-            @for(paper <- listOfRequiredPaper){
-                <div class="form-group">
-                    <label for="paper@paper">@paper (You can do it Later) |
+        @for(paper <- listOfRequiredPaper){
+            <div class="form-group">
+                <label for="paper@paper">@paper (You can do it Later) |
                     @if(user.cloudPaths.flatMap(list => list.find(p => p._1 == paper)).isDefined){
                         <a href="@{assetsFinder.path(user.cloudPaths.flatMap(list => list.find(p => p._1 == paper)).map(e => e._2).get)}">Actual</a>
                     }
-                    </label>
-                    <input type="file" accept=".pdf, .jpeg, .png, .docx" class="form-control" name="paper@paper" id="paper@paper" >
-                </div>
-            }
-
+                </label>
+                <input type="file" accept=".pdf, .jpeg, .png, .docx" class="form-control" name="paper@paper" id="paper@paper" >
+            </div>
+        }
 
         <input type="text" value="@user.isActive" name="isActive" hidden>
 
@@ -134,6 +111,6 @@
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary">Update User</button>
+        <button type="submit" class="btn btn-primary">Update Your Info</button>
     </form>
 }

@@ -109,7 +109,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
       "hireDate" -> user.hireDate.map(User.dateFormatter.writes),
       "picture" -> user.picture,
       "phone" -> user.phone,
-      "cloudLinks" -> user.cloudLinks,
+      "cloudPaths" -> user.cloudPaths,
       "isActive" -> user.isActive,
       "timeZone" -> user.timeZone
     )
@@ -128,7 +128,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
                               "hireDate" -> user.hireDate.map(User.dateFormatter.writes),
                               "picture" -> user.picture,
                               "phone" -> user.phone,
-                              "cloudLinks" -> user.cloudLinks,
+                              "cloudPaths" -> user.cloudPaths,
                               "isActive" -> user.isActive,
                               "timeZone" -> user.timeZone
               )
@@ -150,7 +150,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
          hireDate = u.get.hireDate,
          picture = u.get.picture,
          phone = u.get.phone,
-         cloudLinks = u.get.cloudLinks,
+         cloudPaths = u.get.cloudPaths,
          isActive = false,
          timeZone = u.get.timeZone
        ))
@@ -158,7 +158,6 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
       }
     }
   }
-
   def findEveryExistingMailToCheckForRegistering(idOfUser : Option[String] = None) : Future[List[String]] = {
     findUserById(idOfUser.getOrElse("none")).flatMap{optUser =>
       optUser.map{ user =>

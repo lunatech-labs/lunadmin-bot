@@ -1,6 +1,7 @@
 package controllers
 
-import java.util.{Calendar, Locale, TimeZone}
+import java.nio.file.Paths
+import java.time.{ZoneId, ZonedDateTime}
 
 import javax.inject._
 import models._
@@ -10,19 +11,34 @@ import play.api.data.Form
 import play.api.data.Forms.{email, mapping, number, optional, text}
 import play.api.mvc._
 import play.api.data.Forms._
+import reactivemongo.bson.BSONObjectID
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
+import better.files._
+import akka.actor.{Actor, ActorSystem, Cancellable, Props, Scheduler}
+
+import scala.concurrent.duration._
+import com.lunatech.slack.client.models.{AttachmentField, ChatEphemeral}
+import org.joda.time.Instant
+import tools.DateUtils
 
 
 @Singleton
-class HomeController @Inject()(s : Starter,conf : Configuration) (implicit assetsFinder: AssetsFinder, ec : ExecutionContext)
+class HomeController @Inject()(s : Starter,conf : Configuration) (implicit actorSystem: ActorSystem, assetsFinder: AssetsFinder, ec : ExecutionContext)
   extends AbstractController(s.controllerComponent) {
 
   val listOfStatus: List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
   val listOfPaperName: List[String] = conf.underlying.getStringList("papersCategory.default.tags").asScala.toList
   val listOfTimeZone: List[String] = conf.underlying.getStringList("timeZone.default.tags").asScala.toList
+  val localStorageDirectory = "userDataStorage/"
+  val localAssetDirectory = "public/"
+  val pictureExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"))
+  val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"),Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+
+  var listOfScheduledTask : List[(String, Cancellable)] = List()
+
 
   def index = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index())
@@ -43,7 +59,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
       )
       userForm.bindFromRequest().fold(
         formWithErrors => {
-          Ok(views.html.index()).flashing("registerSuccess" -> "someSuccess")
+          Redirect(routes.HomeController.index()).flashing("registerSuccess" -> "someSuccess")
         },
         userData => {
           val user = User(mail = userData.mail, password = userData.password, firstName = userData.firstName, lastName = userData.lastName)
@@ -64,7 +80,25 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
     res.map{ user =>
       if(user.isDefined){
-        Ok(views.html.viewUserProfil(user.get))
+        Ok(views.html.viewUserProfile(user.get)).flashing(request.flash)
+      }else{
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }
+  }
+
+  def goToEditUserProfile() = Action.async { implicit request: Request[AnyContent] =>
+    val idOfUser = request.session.get("id").getOrElse("none")
+    val timeZone = request.session.get("timeZone").getOrElse("Europe/Paris")
+
+    val res = for {
+      user <- s.userDataStore.findUserById(idOfUser)
+      listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
+    } yield (user, listUserGroup)
+
+    res.map{ e =>
+      if(e._1.isDefined){
+        Ok(views.html.editUserProfile(e._1.get,e._2,listOfStatus,listOfPaperName,timeZone,listOfTimeZone)).flashing(request.flash)
       }else{
         Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
       }
@@ -181,7 +215,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
     res
   }
-
 
   def goToAddUser() = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
@@ -311,15 +344,19 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         }
 
         if (userData.taskChoice == "single") {
-          s.taskDataStore.addSinglePersonTask(SinglePersonTask(
-            description = userData.description,
-            startDate = userData.startDate,
-            endDate = userData.endDate,
-            status = userData.status,
-            employeeId = userData.selectSingleTask,
-            category = userData.category,
-            alert = finalListOfAlert
-          ))
+          val task : SinglePersonTask = SinglePersonTask(
+                                          description = userData.description,
+                                          startDate = userData.startDate,
+                                          endDate = userData.endDate,
+                                          status = userData.status,
+                                          employeeId = userData.selectSingleTask,
+                                          category = userData.category,
+                                          alert = finalListOfAlert
+                                        )
+          s.taskDataStore.addSinglePersonTask(task)
+
+          setSlackBotMessageForSingleTask(task)
+
         } else if (userData.taskChoice == "grouped") {
           s.taskDataStore.addGroupedTask(GroupedTask(
             description = userData.description,
@@ -335,26 +372,166 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
     )
   }
 
+  def setSlackBotMessageForSingleTask(task : SinglePersonTask) = {
+      s.userDataStore.findUserById(task.employeeId).foreach{ optUser =>
+        optUser.foreach{ user =>
+          if(Seq("Unique - Commune","Unique - Importante").contains(task.status)){
+            scheduleASlackBotMessageOnce(task._id, user.mail, task.startDate, task.status , task.description)
+            for(alert <- task.alert){
+             val alertStartDate = ZonedDateTime.from(
+               task.startDate.minusSeconds(alert._1/1000)
+             )
+              scheduleASlackBotMessageOnce(task._id, user.mail, alertStartDate, task.status, task.description)
+            }
+          }else{
+            scheduleASlackBotMessageRecurrent(task._id, user.mail, task.startDate, task.status , task.description)
+            for(alert <- task.alert){
+              val alertStartDate = ZonedDateTime.from(
+                task.startDate.minusSeconds(alert._1/1000)
+              )
+              scheduleASlackBotMessageRecurrent(task._id, user.mail, alertStartDate, task.status, task.description)
+            }
+          }
+        }
+      }
+  }
+
+  def scheduleASlackBotMessageOnce(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String) = {
+    val timeLeftUntilStartDate : Long = startDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
+
+    taskStatus match {
+      case "Unique - Commune" => {
+        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                .addAttachment(
+                  AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
+                    .withText(message)
+                    .withColor("#85DF2D")
+              )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+      case "Unique - Importante" => {
+        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                  .addAttachment(
+                    AttachmentField(fallback = "unique - important Task", callback_id = "important task")
+                      .withText(message)
+                      .withColor("#BB2100")
+                  )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+    }
+  }
+
+  def scheduleASlackBotMessageRecurrent(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String) = {
+    var timeLeftUntilStartDate : Long = 0
+    if(ZonedDateTime.now().getDayOfYear <= startDate.getDayOfYear){
+      timeLeftUntilStartDate = timeLeftUntilStartDate + startDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
+    }
+
+    taskStatus match{
+      case "Quotidienne" => {
+        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 1 day){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                  .addAttachment(
+                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
+                      .withText(message)
+                      .withColor("#85DF2D")
+                  )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+
+      case "Hebdomadaire" => {
+        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 7 days){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                  .addAttachment(
+                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
+                      .withText(message)
+                      .withColor("#85DF2D")
+                  )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+
+      case "Mensuel" => {
+        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 30 days){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                  .addAttachment(
+                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
+                      .withText(message)
+                      .withColor("#85DF2D")
+                  )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+
+      case "Annuel" => {
+        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 365 days){
+          s.slackClient.userLookupByEmail(mail).map { slackUser =>
+            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
+              startDate.withZoneSameInstant(
+                ZoneId.of(slackUser.tz.get)))
+
+            s.slackClient.imOpen(slackUser.id) map (response =>
+              s.slackClient.postEphemeral(
+                ChatEphemeral(response.channel.id, "", slackUser.id)
+                  .addAttachment(
+                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
+                      .withText(message)
+                      .withColor("#85DF2D")
+                  )))
+          }
+        }
+        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
+      }
+    }
+  }
+
+
   def addUser() = Action.async { implicit request: Request[AnyContent] =>
-    val papers = request.body.asFormUrlEncoded.map { x =>
-      x.filterKeys(k => k.startsWith("paper"))
-    }
-
-    val potentialUrlPicture = request.body.asFormUrlEncoded.map { x =>
-      x.find(p => p._1 == "picture")
-    }
-    var finalUrlPicture: Option[String] = None
-    if (potentialUrlPicture.isDefined) {
-      finalUrlPicture = potentialUrlPicture.get.map(x => x._2.head)
-    }
-
-    var listOfPapers: List[String] = List()
-    var listOfPapersWithNames: List[(String, String)] = List()
-    if (papers.isDefined) {
-      listOfPapers = listOfPapers ++ papers.get.map(e => e._2.head)
-      for (index <- listOfPaperName.indices)
-        listOfPapersWithNames = listOfPapersWithNames :+ (listOfPaperName(index), listOfPapers(index))
-    }
 
     val userForm = Form(
       mapping(
@@ -362,13 +539,11 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text,
-        "birthDate" -> optional(localDate),
+        "birthDate" -> localDate,
         "groupName" -> optional(list(nonEmptyText)),
         "status" -> optional(text),
-        "hireDate" -> optional(localDate),
-        "picture" -> optional(text),
+        "hireDate" -> localDate,
         "phone" -> optional(text),
-        "cloudLinks" -> list(text),
         "isActive" -> boolean,
         "timeZone" -> text
       )(UserAddForm.apply)(UserAddForm.unapply)
@@ -376,35 +551,92 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
     val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering()
 
-    existingMails.map { list =>
+    existingMails.flatMap { list =>
 
       userForm.bindFromRequest().fold(
         formWithErrors => {
           Logger.info(formWithErrors.toString)
           Logger.info(formWithErrors.errors.toString)
-          Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
+          Future.successful(
+            Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
+          )
         },
         userData => {
-          if(list.contains(userData.mail)){
-            Redirect(routes.HomeController.goToAddUser()).flashing("mailAlreadyExist" -> "mailAlreadyExist")
-          }else{
-            s.userDataStore.addUser(User(userData.mail,
-              userData.password,
-              userData.firstName,
-              userData.lastName,
-              birthDate = userData.birthDate,
-              groupName = userData.groupName,
-              status = userData.status,
-              hireDate = userData.hireDate,
-              picture = finalUrlPicture,
-              phone = userData.phone,
-              cloudLinks = Some(listOfPapersWithNames),
-              timeZone = userData.timeZone))
+          if (list.contains(userData.mail)) {
+            Future.successful(
+              Redirect(routes.HomeController.goToAddUser()).flashing("mailAlreadyExist" -> "mailAlreadyExist")
+            )
+          } else {
+            // creation of id explicitly to be able to create a personal unique folder
+            val id: String = BSONObjectID.generate().stringify
 
-            Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
+            val res = request.body.asMultipartFormData.map { body =>
+              val picture = body.file("picture").filter(p => p.filename.nonEmpty)
+              val papers = body.files.filter(p => p.key.startsWith("paper") && p.filename.nonEmpty)
+
+              if ( picture.forall(p => pictureExtensionAccepted.contains(p.contentType))
+                && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
+
+                var picturePath : String = ""
+                picture.map { picture =>
+                    s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filename = Paths.get(picture.filename).getFileName
+                    picturePath = picturePath + s"$localStorageDirectory$id/$filename"
+                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
+                }
+
+                var listOfPapers: List[(String, String)] = List()
+                papers.map { paper =>
+                    s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filePath : String = s"$localStorageDirectory$id/${paper.filename}"
+                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
+                }
+
+                s.userDataStore.addUser(User(userData.mail,
+                  userData.password,
+                  userData.firstName,
+                  userData.lastName,
+                  _id = id,
+                  birthDate = Some(userData.birthDate),
+                  groupName = userData.groupName,
+                  status = userData.status,
+                  hireDate = Some(userData.hireDate),
+                  picture = Some(picturePath),
+                  phone = userData.phone,
+                  cloudPaths = Some(listOfPapers),
+                  timeZone = userData.timeZone))
+
+                Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
+              }else{
+                Redirect(routes.HomeController.goToAddUser()).flashing("badFileFormat" -> "badFileFormat")
+              }
+            }
+
+            val futureRes : Future[Result] = res.fold({
+              s.userDataStore.addUser(User(userData.mail,
+                userData.password,
+                userData.firstName,
+                userData.lastName,
+                _id = id,
+                birthDate = Some(userData.birthDate),
+                groupName = userData.groupName,
+                status = userData.status,
+                hireDate = Some(userData.hireDate),
+                picture = None,
+                phone = userData.phone,
+                cloudPaths = None,
+                timeZone = userData.timeZone))
+
+              Future.successful(
+                Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
+              )
+
+            })(x => Future.successful(x))
+            futureRes
           }
-
-        })
+        }
+      )
     }
   }
 
@@ -522,23 +754,24 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
       },
       userData => {
-        var finalListOfAlert: List[(Long, String)] = List()
-        for (e <- userData.alertNumbers.indices) {
-          finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
-        }
+        request.session.get("id").map { id =>
+          var finalListOfAlert: List[(Long, String)] = List()
+          for (e <- userData.alertNumbers.indices) {
+            finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
+          }
 
-        s.taskDataStore.updateGroupedTask(idOfTask, GroupedTask(
-          description = userData.description,
-          startDate = userData.startDate,
-          endDate = userData.endDate,
-          status = userData.status,
-          groupName = userData.selectGroupedTask,
-          category = userData.category,
-          alert = finalListOfAlert,
-          isActive = userData.isActive))
-
-      })
-    Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
+          s.taskDataStore.updateGroupedTask(idOfTask, GroupedTask(
+            description = userData.description,
+            startDate = userData.startDate,
+            endDate = userData.endDate,
+            status = userData.status,
+            groupName = userData.selectGroupedTask,
+            category = userData.category,
+            alert = finalListOfAlert,
+            isActive = userData.isActive))
+          Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
+        }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
+  })
   }
 
   def updateSingleTask(idOfTask: String) = Action { implicit request: Request[AnyContent] =>
@@ -580,61 +813,39 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
       },
       userData => {
-        var finalListOfAlert: List[(Long, String)] = List()
-        for (e <- userData.alertNumbers.indices) {
-          finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
-        }
+        request.session.get("id").map { id =>
+          var finalListOfAlert: List[(Long, String)] = List()
+          for (e <- userData.alertNumbers.indices) {
+            finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
+          }
 
-        s.taskDataStore.updateSinglePersonTask(idOfTask, SinglePersonTask(
-          description = userData.description,
-          startDate = userData.startDate,
-          endDate = userData.endDate,
-          status = userData.status,
-          employeeId = userData.selectSingleTask,
-          category = userData.category,
-          alert = finalListOfAlert,
-          isActive = userData.isActive
-        )
-        )
+          s.taskDataStore.updateSinglePersonTask(idOfTask, SinglePersonTask(
+            description = userData.description,
+            startDate = userData.startDate,
+            endDate = userData.endDate,
+            status = userData.status,
+            employeeId = userData.selectSingleTask,
+            category = userData.category,
+            alert = finalListOfAlert,
+            isActive = userData.isActive))
 
-      })
-    Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
+          Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
+        }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
+  })
   }
 
   def updateUser(idOfUser: String) = Action.async { implicit request: Request[AnyContent] =>
-    val papers = request.body.asFormUrlEncoded.map { x =>
-      x.filterKeys(k => k.startsWith("paper"))
-    }
-
-    var listOfPapers: List[String] = List()
-    var listOfPapersWithNames: List[(String, String)] = List()
-    if (papers.isDefined) {
-      listOfPapers = listOfPapers ++ papers.get.map(e => e._2.head)
-      for (index <- listOfPaperName.indices)
-        listOfPapersWithNames = listOfPapersWithNames :+ (listOfPaperName(index), listOfPapers(index))
-    }
-
-    val potentialUrlPicture = request.body.asFormUrlEncoded.map { x =>
-      x.find(p => p._1 == "picture")
-    }
-    var finalUrlPicture: Option[String] = None
-    if (potentialUrlPicture.isDefined) {
-      finalUrlPicture = potentialUrlPicture.get.map(x => x._2.head)
-    }
-
     val userForm = Form(
       mapping(
         "mail" -> text,
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text,
-        "birthDate" -> optional(localDate),
+        "birthDate" -> localDate,
         "groupName" -> optional(list(nonEmptyText)),
         "status" -> optional(text),
-        "hireDate" -> optional(localDate),
-        "picture" -> optional(text),
+        "hireDate" -> localDate,
         "phone" -> optional(text),
-        "cloudLinks" -> list(text),
         "isActive" -> boolean,
         "timeZone" -> text
       )(UserAddForm.apply)(UserAddForm.unapply)
@@ -642,41 +853,250 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit asset
 
     val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering(Some(idOfUser))
 
-    existingMails.map { list =>
+    existingMails.flatMap { list =>
+
       userForm.bindFromRequest().fold(
         formWithErrors => {
+          Logger.info(formWithErrors.toString)
           Logger.info(formWithErrors.errors.toString)
-          Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("failure" -> "someFailure")
+          Future.successful(
+            Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("failure" -> "someFailure")
+          )
         },
         userData => {
           if (list.contains(userData.mail)) {
-            Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("wrongMail" -> "already exist")
+            Future.successful(
+              Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("mailAlreadyExist" -> "mailAlreadyExist")
+            )
           } else {
-            s.userDataStore.updateUser(idOfUser, User(userData.mail,
-              userData.password,
-              userData.firstName,
-              userData.lastName,
-              birthDate = userData.birthDate,
-              groupName = userData.groupName,
-              status = userData.status,
-              hireDate = userData.hireDate,
-              picture = finalUrlPicture,
-              phone = userData.phone,
-              cloudLinks = Some(listOfPapersWithNames),
-              isActive = userData.isActive,
-              timeZone = userData.timeZone))
+            request.session.get("id").map { id =>
+              val res = request.body.asMultipartFormData.map { body =>
+                val picture = body.file("picture").filter(p => p.filename.nonEmpty)
+                val papers = body.files.filter(p => p.key.startsWith("paper") && p.filename.nonEmpty)
 
-            if (request.session.get("id").get == idOfUser) {
-              if (userData.picture.isDefined) {
-                Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> userData.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
-              } else {
-                Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                if (picture.forall(p => pictureExtensionAccepted.contains(p.contentType))
+                  && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
+
+                  var picturePath: Option[String] = None
+                  picture.map { picture =>
+                    s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filename = Paths.get(picture.filename).getFileName
+                    picturePath = Some(picturePath + s"$localStorageDirectory$idOfUser/$filename")
+                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
+                  }
+
+                  var listOfPapers: List[(String, String)] = List()
+                  papers.map { paper =>
+                    s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filePath: String = s"$localStorageDirectory/$idOfUser/${paper.filename}"
+                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
+                  }
+
+                  s.userDataStore.updateUser(idOfUser, User(userData.mail,
+                    userData.password,
+                    userData.firstName,
+                    userData.lastName,
+                    birthDate = Some(userData.birthDate),
+                    groupName = userData.groupName,
+                    status = userData.status,
+                    hireDate = Some(userData.hireDate),
+                    picture = picturePath,
+                    phone = userData.phone,
+                    cloudPaths = Some(listOfPapers),
+                    isActive = userData.isActive,
+                    timeZone = userData.timeZone))
+
+                  if (id == idOfUser) {
+                    if (picturePath.isDefined) {
+                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                    } else {
+                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                    }
+                  } else {
+                    Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
+                  }
+                } else {
+                  Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("badFileFormat" -> "badFileFormat")
+                }
               }
-            } else {
-              Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
-            }
+                val futureRes: Future[Result] = res.fold({
+                s.userDataStore.findUserById(idOfUser).map{optUser =>
+                  optUser.map{ user =>
+
+                    s.userDataStore.updateUser(idOfUser, User(userData.mail,
+                      userData.password,
+                      userData.firstName,
+                      userData.lastName,
+                      birthDate = Some(userData.birthDate),
+                      groupName = userData.groupName,
+                      status = userData.status,
+                      hireDate = Some(userData.hireDate),
+                      picture = user.picture,
+                      phone = userData.phone,
+                      cloudPaths = user.cloudPaths,
+                      isActive = userData.isActive,
+                      timeZone = userData.timeZone))
+
+                    if (id == idOfUser) {
+                      if (user.picture.isDefined) {
+                        Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> user.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                      }else {
+                        Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                      }
+                    }else {
+                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
+                    }
+                  }.getOrElse(Redirect(routes.HomeController.displayUser(0, 10)).flashing("userNotFound" -> "someUpdate"))
+                }
+              })(x => Future.successful(x))
+              futureRes
+            }.getOrElse(
+              Future.successful(
+                Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page")
+              )
+            )
           }
-        })
+        }
+      )
+    }
+  }
+
+  def updateProfile() = Action.async { implicit request: Request[AnyContent] =>
+    val userForm = Form(
+      mapping(
+        "mail" -> text,
+        "password" -> text,
+        "firstName" -> text,
+        "lastName" -> text,
+        "birthDate" -> localDate,
+        "groupName" -> optional(list(nonEmptyText)),
+        "status" -> optional(text),
+        "hireDate" -> localDate,
+        "phone" -> optional(text),
+        "isActive" -> boolean,
+        "timeZone" -> text
+      )(UserAddForm.apply)(UserAddForm.unapply)
+    )
+
+    val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering(request.session.get("id"))
+
+    existingMails.flatMap { list =>
+      Logger.info(list.toString)
+      userForm.bindFromRequest().fold(
+        formWithErrors => {
+          Logger.info(formWithErrors.toString)
+          Logger.info(formWithErrors.errors.toString)
+          Future.successful(
+            Redirect(routes.HomeController.goToEditUserProfile()).flashing("failure" -> "someFailure")
+          )
+        },
+        userData => {
+          if (list.contains(userData.mail)) {
+            Future.successful(
+              Redirect(routes.HomeController.goToEditUserProfile()).flashing("wrongMail" -> "mailAlreadyExist")
+            )
+          } else {
+            request.session.get("id").map { id =>
+              val res = request.body.asMultipartFormData.map { body =>
+                val picture = body.file("picture").filter(p => p.filename.nonEmpty)
+                val papers = body.files.filter(p => p.key.startsWith("paper") && p.filename.nonEmpty)
+
+                if (picture.forall(p => pictureExtensionAccepted.contains(p.contentType))
+                  && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
+
+                  var picturePath: Option[String] = None
+                  picture.map { picture =>
+                    s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filename = Paths.get(picture.filename).getFileName
+                    picturePath = Some(picturePath + s"$localStorageDirectory$id/$filename")
+                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
+                  }
+
+                  var listOfPapers: List[(String, String)] = List()
+                  papers.map { paper =>
+                    s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                    val filePath: String = s"$localStorageDirectory/$id/${paper.filename}"
+                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
+                  }
+
+                  var finalListOfPapers : List[(String, String)] = List()
+                  s.userDataStore.findUserById(id).foreach{optUser =>
+                    optUser.foreach{user =>
+                      user.cloudPaths.foreach{list =>
+                        for(paper <- listOfPaperName){
+                         listOfPapers.find(p => p._1 == paper).map{ e =>
+                           finalListOfPapers = finalListOfPapers :+ e
+                           e
+                         }.getOrElse{
+                           list.find(p => p._1 == paper).map{ e =>
+                             finalListOfPapers = finalListOfPapers :+ e
+                             e
+                           }
+                         }
+                        }
+                        s.userDataStore.updateUser(id, User(userData.mail,
+                          userData.password,
+                          userData.firstName,
+                          userData.lastName,
+                          birthDate = Some(userData.birthDate),
+                          groupName = userData.groupName,
+                          status = userData.status,
+                          hireDate = Some(userData.hireDate),
+                          picture = picturePath,
+                          phone = userData.phone,
+                          cloudPaths = Some(finalListOfPapers),
+                          isActive = userData.isActive,
+                          timeZone = userData.timeZone))
+                      }
+                    }
+                  }
+
+                  if (picturePath.isDefined) {
+                    Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                  } else {
+                    Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                  }
+                } else {
+                  Redirect(routes.HomeController.goToUserProfile()).flashing("badFileFormat" -> "badFileFormat")
+                }
+              }
+                val futurRes : Future[Result] = res.fold({
+                  s.userDataStore.findUserById(id).map{optUser =>
+                    optUser.map{ user =>
+
+                      s.userDataStore.updateUser(id, User(userData.mail,
+                        userData.password,
+                        userData.firstName,
+                        userData.lastName,
+                        birthDate = Some(userData.birthDate),
+                        groupName = userData.groupName,
+                        status = userData.status,
+                        hireDate = Some(userData.hireDate),
+                        picture = user.picture,
+                        phone = userData.phone,
+                        cloudPaths = user.cloudPaths,
+                        isActive = userData.isActive,
+                        timeZone = userData.timeZone))
+
+                        if (user.picture.isDefined) {
+                          Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> user.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                        }else {
+                          Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                        }
+                    }.getOrElse(Redirect(routes.HomeController.index()).flashing("accountNotAvailable" -> "")).withNewSession
+                  }
+                })(x => Future.successful(x))
+
+              futurRes
+            }.getOrElse{
+              Future.successful(
+              Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page")
+              )}
+          }
+        }
+      )
     }
   }
 }

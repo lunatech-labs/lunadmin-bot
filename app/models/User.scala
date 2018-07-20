@@ -21,7 +21,7 @@ case class User(
                  hireDate : Option[LocalDate] = None,
                  picture : Option[String] = None, // link
                  phone : Option[String] = None, // pour le +33 au cas ou
-                 cloudLinks : Option[List[(String,String)]] = None,
+                 cloudPaths : Option[List[(String,String)]] = None,
                  isActive : Boolean = true,
                  timeZone : String = "Europe/Paris"
 ){
@@ -33,16 +33,18 @@ case class User(
 }
 
 object User {
+  private val UTC: ZoneId = ZoneId.of("UTC")
+
   implicit val dateFormatter: Format[LocalDate] = new Format[LocalDate] {
     def reads(jsValue: JsValue): JsResult[LocalDate] = {
       (jsValue \ "$date").validateOpt[Long].map{ l =>
-        val zdt = new Date(l.get).toInstant.atZone(ZoneId.of("UTC"))
+        val zdt = new Date(l.get).toInstant.atZone(UTC)
         LocalDate.of(zdt.getYear, zdt.getMonthValue, zdt.getDayOfMonth)
       }
     }
 
     def writes(date: LocalDate): JsValue = {
-      Json.obj("$date" -> date.atStartOfDay(ZoneId.of("UTC")).toInstant.toEpochMilli)
+      Json.obj("$date" -> date.atStartOfDay(UTC).toInstant.toEpochMilli)
     }
   }
 

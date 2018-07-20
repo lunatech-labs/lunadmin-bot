@@ -7,13 +7,11 @@ case class UserAddForm(
                  password : String,
                  firstName : String,
                  lastName : String,
-                 birthDate : Option[LocalDate],
+                 birthDate : LocalDate,
                  groupName : Option[List[String]] = None,
                  status : Option[String] = Some("user"),
-                 hireDate : Option[LocalDate],
-                 picture : Option[String] = None,
+                 hireDate : LocalDate,
                  phone : Option[String] = None,
-                 cloudLinks : List[String],
                  isActive : Boolean = true,
                  timeZone : String = "Europe/Paris"
                )

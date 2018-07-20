@@ -1,31 +1,38 @@
 package controllers
 
-import java.time.LocalDate
-
 import com.google.inject.Singleton
 import javax.inject.Inject
 import models._
 import play.Logger
 import play.api.Configuration
 import play.api.mvc.{AbstractController, ControllerComponents}
-import play.api.libs.json._
 import play.modules.reactivemongo.{MongoController, ReactiveMongoApi, ReactiveMongoComponents}
 import store.{TaskCategoryDataStore, TaskDataStore, UserDataStore, UserGroupDataStore}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
+import better.files._
+import better.files.File._
+import com.lunatech.slack.client.api.SlackClient
+import com.lunatech.slack.client.models.{AttachmentField, ChatEphemeral}
+import reactivemongo.bson.BSONObjectID
+
+
+
 
 @Singleton
 class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore, uDS : UserDataStore, tDS: TaskDataStore, configuration : Configuration, cc: ControllerComponents, val reactiveMongoApi: ReactiveMongoApi)(implicit assetsFinder: AssetsFinder, ec: ExecutionContext)
   extends AbstractController(cc) with MongoController with ReactiveMongoComponents {
 
-  val controllerComponent = cc
-  val userGroupDataStore = uGDS
-  val userDataStore = uDS
-  val taskDataStore = tDS
-  val taskCategoryDataStore = tCDS
+  val controllerComponent : ControllerComponents = cc
+  val userGroupDataStore : UserGroupDataStore = uGDS
+  val userDataStore : UserDataStore = uDS
+  val taskDataStore : TaskDataStore = tDS
+  val taskCategoryDataStore : TaskCategoryDataStore = tCDS
+  val listOfTaskStatus : List[String] = configuration.underlying.getStringList("taskStatus.default.tags").asScala.toList
 
-  val listOfTaskStatus = configuration.underlying.getStringList("taskStatus.default.tags").asScala.toList
+  val slackBotToken : String = configuration.underlying.getString("slackBotToken.default.tag")
+  val slackClient = SlackClient(slackBotToken)
 
   main()
 
@@ -37,9 +44,14 @@ class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore,
     val existingMails = userDataStore.findEveryExistingMailToCheckForRegistering()
     existingMails.map{list =>
       if(!list.contains("LunAdmin@gmail.com")){
-        userDataStore.addUser(User(mail = "LunAdmin@gmail.com",password = "admin",firstName = "Admin",lastName = "Lunatech",status = Some("Admin"),picture = Some("\uFEFFhttps://upload.wikimedia.org/wikipedia/en/thumb/7/7d/Lenna_%28test_image%29.png/220px-Lenna_%28test_image%29.png")))
+        userDataStore.addUser(User(mail = "LunAdmin@gmail.com",password = "admin",firstName = "Admin",lastName = "Lunatech",status = Some("Admin")))
       }
     }
+
+//    slackClient.userLookupByEmail("amaury.cahuet@lunatech.fr").map { user =>
+//      slackClient.imOpen(user.id) map (response =>
+//        slackClient.postEphemeral(ChatEphemeral(response.channel.id, "debut", user.id).addAttachment(AttachmentField("unique - commun Task","commun task",color = Some("#BDFF7C")))))
+//    }
 
 
   }

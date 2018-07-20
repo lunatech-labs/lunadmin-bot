@@ -34,6 +34,11 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 You just deleted you own account - LOL !
                 </div><br/>
+        }else if(flash.get("accountNotAvailable").isDefined) {
+                <div class="alert alert-danger alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                Error - Your account has been suspended !
+                </div><br/>
         }
     }
 

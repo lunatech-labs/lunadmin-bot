@@ -24,7 +24,7 @@ case class SinglePersonTask (
                               alert : List[(Long,String)],
                               `type`: TaskType = TaskType.SINGLE,
                               isActive : Boolean = true
-)extends Task(_id, description, startDate, endDate, status, category, alert,TaskType.SINGLE, isActive){
+)extends Task{
 
   override def getNameById(userList : List[User], groupList : List[UserGroup]): String = {
     val employeeConcerned = userList.find(p => p._id == employeeId)

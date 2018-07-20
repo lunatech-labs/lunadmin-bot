@@ -13,12 +13,22 @@
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Failure!</strong> There is already an account with this mail !
                 </div>
+        }else if(flash.get("badFileFormat").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Bad File Format!</strong> Only jpeg/png for the picture and png/jpeg/pdf for the administrativ papers !
+                </div>
+        }else if(flash.get("errorMissingFile").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Missing File!</strong>
+                </div>
         }else{
                     <br/>
         }
     }
 
-    <form method="post" action="@routes.HomeController.addUser()">
+    <form method="post" enctype="multipart/form-data" action="@routes.HomeController.addUser()">
         @helper.CSRF.formField
         <div class="form-group">
             <label for="firstName">First Name</label>
@@ -50,12 +60,12 @@
 
         <div class="form-group">
             <label for="birthDate">Birth Date</label>
-            <input type="date" class="form-control" name="birthDate" id="birthDate" >
+            <input type="date" class="form-control" name="birthDate" id="birthDate" required>
         </div>
 
         <div class="form-group">
             <label for="hireDate">Hire Date</label>
-            <input type="date" class="form-control" name="hireDate" id="hireDate" >
+            <input type="date" class="form-control" name="hireDate" id="hireDate" required>
         </div>
 
         <label for="status">Select a status :</label>
@@ -73,14 +83,14 @@
         </select>
 
         <div class="form-group">
-            <label for="picture">Picture Link (You can do it Later)</label>
-            <input type="url" class="form-control" name="picture" id="picture" pattern="https://.*" placeholder="https://....." >
+            <label for="picture">Picture (You can do it Later)</label>
+            <input type="file" accept=".png, .jpeg" class="form-control" name="picture" id="picture" >
         </div>
 
         @for(paper <- listOfRequiredPaper){
             <div class="form-group">
-                <label for="paper@paper.hashCode">@paper (You can do it Later)</label>
-                <input type="url" class="form-control" name="paper@paper.hashCode" id="paper@paper.hashCode" pattern="https://.*" placeholder="https://....." >
+                <label for="paper@paper">@paper (You can do it Later)</label>
+                <input type="file" accept=".pdf, .jpeg, .png, .docx" class="form-control" name="paper@paper" id="paper@paper" >
             </div>
         }
 
