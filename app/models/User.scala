@@ -2,8 +2,6 @@ package models
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import java.util.Date
-
-import play.api.Logger
 import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID
 import tools.DateUtils

@@ -2,7 +2,6 @@ package models
 
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.Date
-
 import models.TaskType.TaskType
 import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID

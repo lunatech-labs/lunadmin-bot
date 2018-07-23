@@ -1,11 +1,9 @@
 package models
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
-
 import models.TaskType.TaskType
 import tools.DateUtils
-
 import scala.concurrent.duration._
 
 trait Task {

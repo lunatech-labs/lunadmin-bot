@@ -47,13 +47,6 @@ class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore,
         userDataStore.addUser(User(mail = "LunAdmin@gmail.com",password = "admin",firstName = "Admin",lastName = "Lunatech",status = Some("Admin")))
       }
     }
-
-//    slackClient.userLookupByEmail("amaury.cahuet@lunatech.fr").map { user =>
-//      slackClient.imOpen(user.id) map (response =>
-//        slackClient.postEphemeral(ChatEphemeral(response.channel.id, "debut", user.id).addAttachment(AttachmentField("unique - commun Task","commun task",color = Some("#BDFF7C")))))
-//    }
-
-
   }
 
 

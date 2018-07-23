@@ -7,7 +7,6 @@ import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.{Cursor, QueryOpts}
 import reactivemongo.bson.{BSONDocument, BSONObjectID}
 import reactivemongo.play.json.collection.JSONCollection
-
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 import scala.collection.JavaConverters._

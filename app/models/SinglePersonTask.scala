@@ -1,17 +1,11 @@
 package models
 
-import java.text.SimpleDateFormat
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.Date
-
 import models.TaskType.TaskType
 import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
-import tools.DateUtils
-
-import scala.concurrent.duration.Duration
-
 
 case class SinglePersonTask (
                               _id : String = BSONObjectID.generate().stringify,

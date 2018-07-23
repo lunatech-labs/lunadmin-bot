@@ -1,15 +1,11 @@
 package models
 
 import java.util.Date
-import java.text.SimpleDateFormat
 import java.time.{ZoneId, ZonedDateTime}
-
 import models.TaskType.TaskType
 import play.api.libs.json._
 import reactivemongo.bson.BSONObjectID
 import reactivemongo.play.json.BSONFormats.BSONObjectIDFormat
-
-import scala.concurrent.duration.Duration
 
 case class GroupedTask (
                          _id : String = BSONObjectID.generate().stringify,

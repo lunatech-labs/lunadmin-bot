@@ -1,8 +1,6 @@
 package controllers
 
 import java.nio.file.Paths
-import java.time.{ZoneId, ZonedDateTime}
-
 import javax.inject._
 import models._
 import play.Logger
@@ -12,32 +10,24 @@ import play.api.data.Forms.{email, mapping, number, optional, text}
 import play.api.mvc._
 import play.api.data.Forms._
 import reactivemongo.bson.BSONObjectID
-
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import better.files._
-import akka.actor.{Actor, ActorSystem, Cancellable, Props, Scheduler}
-
-import scala.concurrent.duration._
-import com.lunatech.slack.client.models.{AttachmentField, ChatEphemeral}
-import org.joda.time.Instant
-import tools.DateUtils
+import services.TaskScheduler
 
 
 @Singleton
-class HomeController @Inject()(s : Starter,conf : Configuration) (implicit actorSystem: ActorSystem, assetsFinder: AssetsFinder, ec : ExecutionContext)
+class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: TaskScheduler)(implicit assetsFinder: AssetsFinder, ec : ExecutionContext)
   extends AbstractController(s.controllerComponent) {
 
-  val listOfStatus: List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
-  val listOfPaperName: List[String] = conf.underlying.getStringList("papersCategory.default.tags").asScala.toList
-  val listOfTimeZone: List[String] = conf.underlying.getStringList("timeZone.default.tags").asScala.toList
-  val localStorageDirectory = "userDataStorage/"
-  val localAssetDirectory = "public/"
-  val pictureExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"))
-  val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"),Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-
-  var listOfScheduledTask : List[(String, Cancellable)] = List()
+  private val listOfStatus: List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
+  private val listOfPaperName: List[String] = conf.underlying.getStringList("papersCategory.default.tags").asScala.toList
+  private val listOfTimeZone: List[String] = conf.underlying.getStringList("timeZone.default.tags").asScala.toList
+  private val localStorageDirectory = "userDataStorage/"
+  private val localAssetDirectory = "public/"
+  private val pictureExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"))
+  private val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"),Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
 
 
   def index = Action { implicit request: Request[AnyContent] =>
@@ -145,7 +135,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit actor
     Redirect(routes.HomeController.index()).withNewSession
   }
 
-
   def displayTasks(page: Int = 0, pageSize: Int = 10) = Action.async { implicit request: Request[AnyContent] =>
     val idOfUser = request.session.get("id").getOrElse("none")
     val timeZone = request.session.get("timeZone").getOrElse("Europe/Paris")
@@ -174,11 +163,11 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit actor
     }
   }
 
-
   def deleteTask(idTask: String, taskType: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
     request.session.get("status").map{ status =>
       if (status == "Admin") {
         s.taskDataStore.deleteTask(idTask, taskType)
+        taskScheduler.deleteTask(idTask)
         Redirect(routes.HomeController.displayTasks(page, pageSize)).flashing("taskDeleted" -> "The Task Has Been deleted !")
       } else {
         Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
@@ -353,318 +342,26 @@ class HomeController @Inject()(s : Starter,conf : Configuration) (implicit actor
                                           category = userData.category,
                                           alert = finalListOfAlert
                                         )
-          //s.taskDataStore.addSinglePersonTask(task)
 
-          //setSlackBotMessageForSingleTask(task)
+          s.taskDataStore.addSinglePersonTask(task)
+          taskScheduler.setSlackBotMessageForSingleTask(task)
 
         } else if (userData.taskChoice == "grouped") {
-          s.taskDataStore.addGroupedTask(GroupedTask(
-            description = userData.description,
-            startDate = userData.startDate,
-            endDate = userData.endDate,
-            status = userData.status,
-            groupName = userData.selectGroupedTask,
-            category = userData.category,
-            alert = finalListOfAlert))
+          val task : GroupedTask = GroupedTask(
+                                          description = userData.description,
+                                          startDate = userData.startDate,
+                                          endDate = userData.endDate,
+                                          status = userData.status,
+                                          groupName = userData.selectGroupedTask,
+                                          category = userData.category,
+                                          alert = finalListOfAlert)
+
+          s.taskDataStore.addGroupedTask(task)
+          taskScheduler.setSlackBotMessageForGroupedTask(task)
         }
         Redirect(routes.HomeController.displayTasks(0, 10)).flashing("success" -> "someSucess")
       }
     )
-  }
-
-  private def setSlackBotMessageForSingleTask(task : SinglePersonTask) = {
-      s.userDataStore.findUserById(task.employeeId).foreach{ optUser =>
-        optUser.foreach{ user =>
-          if(Seq("Unique - Commune","Unique - Importante").contains(task.status)){
-            scheduleASlackBotMessageOnce(task._id, user.mail, task.startDate, task.status , task.description)
-            for(alert <- task.alert){
-             val alertStartDate = ZonedDateTime.from(
-               task.startDate.minusSeconds(alert._1/1000)
-             )
-              scheduleASlackBotMessageOnce(task._id, user.mail, alertStartDate, task.status, task.description)
-            }
-          }else{
-            scheduleASlackBotMessageRecurrent(task._id, user.mail, task.startDate, task.status , task.description)
-            for(alert <- task.alert){
-              val alertStartDate = ZonedDateTime.from(
-                task.startDate.minusSeconds(alert._1/1000)
-              )
-              scheduleASlackBotMessageRecurrent(task._id, user.mail, alertStartDate, task.status, task.description)
-            }
-          }
-        }
-      }
-  }
-
-  private def scheduleASlackBotMessageOnce(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String) : Unit = {
-    val timeLeftUntilStartDate : Long = startDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
-
-    taskStatus match {
-      case "Unique - Commune" => {
-        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-      case "Unique - Importante" => {
-        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - important Task", callback_id = "important task")
-                      .withText(message)
-                      .withColor("#BB2100")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-    }
-  }
-
-  private def scheduleASlackBotAlertMessageOnce(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String, alertDuration : Long) : Unit = {
-    val alertStartDate = ZonedDateTime.from(
-      startDate.minusSeconds(alertDuration/1000)
-    )
-    val timeLeftUntilStartDate : Long = alertStartDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
-
-    taskStatus match {
-      case "Unique - Commune" => {
-        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#00BABD")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-      case "Unique - Importante" => {
-        val scheduledTask = actorSystem.scheduler.scheduleOnce(timeLeftUntilStartDate millis){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - important Task", callback_id = "important task")
-                      .withText(message)
-                      .withColor("#00BABD")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-    }
-  }
-
-  private def scheduleASlackBotMessageRecurrent(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String) : Unit = {
-    var timeLeftUntilStartDate : Long = 0
-    if(ZonedDateTime.now().getDayOfYear <= startDate.getDayOfYear){
-      timeLeftUntilStartDate = timeLeftUntilStartDate + startDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
-    }
-
-    taskStatus match{
-      case "Quotidienne" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 1 day){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Hebdomadaire" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 7 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Mensuel" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 30 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Annuel" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 365 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-    }
-  }
-
-  private def scheduleASlackBotAlertMessageRecurrent(taskId : String, mail : String, startDate : ZonedDateTime, taskStatus : String, taskDescription: String, alertDuration : Long) : Unit = {
-    var timeLeftUntilStartDate : Long = 0
-    if(ZonedDateTime.now().getDayOfYear <= startDate.getDayOfYear){
-      timeLeftUntilStartDate = timeLeftUntilStartDate + startDate.toInstant.toEpochMilli - ZonedDateTime.now().toInstant.toEpochMilli
-    }
-
-    taskStatus match{
-      case "Quotidienne" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 1 day){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Hebdomadaire" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 7 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Mensuel" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 30 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-
-      case "Annuel" => {
-        val scheduledTask = actorSystem.scheduler.schedule(timeLeftUntilStartDate millis, 365 days){
-          s.slackClient.userLookupByEmail(mail).map { slackUser =>
-            val message : String = taskDescription + " - " + DateUtils.dateTimeFormatterLocal.format(
-              startDate.withZoneSameInstant(
-                ZoneId.of(slackUser.tz.get)))
-
-            s.slackClient.imOpen(slackUser.id) map (response =>
-              s.slackClient.postEphemeral(
-                ChatEphemeral(response.channel.id, "", slackUser.id)
-                  .addAttachment(
-                    AttachmentField(fallback = "unique - commun Task", callback_id = "commun task")
-                      .withText(message)
-                      .withColor("#85DF2D")
-                  )))
-          }
-        }
-        listOfScheduledTask = listOfScheduledTask :+ (taskId,scheduledTask)
-      }
-    }
   }
 
   def addUser() = Action.async { implicit request: Request[AnyContent] =>

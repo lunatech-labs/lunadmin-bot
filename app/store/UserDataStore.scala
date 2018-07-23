@@ -1,15 +1,12 @@
 package store
 
-import java.time.LocalDate
-
 import javax.inject.{Inject, Singleton}
 import models._
-import play.api.{Configuration, Logger}
+import play.api.Configuration
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.{Cursor, QueryOpts}
-import reactivemongo.bson.{BSONDocument, BSONObjectID}
+import reactivemongo.bson.BSONDocument
 import reactivemongo.play.json.collection.JSONCollection
-
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 
@@ -79,6 +76,18 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
 
   def findUserDescriptionByUserGroup(userGroupName : String) : Future[List[UserDescription]] = {
     val query = Json.obj("isActive" -> true,"groupName" -> userGroupName)
+
+    userCollection.flatMap(
+      _.find(query)
+        .cursor[UserDescription]()
+        .collect[List](-1, Cursor.FailOnError[List[UserDescription]]())
+    )
+  }
+
+  def findUserDescriptionByListOfUserGroup(listOfUserName : List[String]) : Future[List[UserDescription]] = {
+    val query = Json.obj("isActive" -> true,
+                        "groupName" -> Json.obj(
+                          "$in" -> listOfUserName))
 
     userCollection.flatMap(
       _.find(query)

@@ -1,6 +1,6 @@
 package models
 
-import java.time.{LocalDateTime, ZoneId, ZonedDateTime}
+import java.time.{ZoneId, ZonedDateTime}
 import java.util.Date
 
 case class SinglePersonTaskUpdateForm (

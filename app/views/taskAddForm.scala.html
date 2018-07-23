@@ -1,3 +1,5 @@
+@import java.time.ZonedDateTime
+@import tools.DateUtils
 @(listCategory : List[(String,List[String])], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
@@ -21,7 +23,7 @@
 
         <div class="form-group">
             <label for="startDate">Start Date</label>
-            <input type="datetime-local" onchange="setMinOnEndDate()" class="form-control" name="startDate" id="startDate" required>
+            <input type="datetime-local" onchange="setMinOnEndDate()" class="form-control" min="@{DateUtils.dateTimeFormatterJavaUtil.format(ZonedDateTime.now())}" value="@{DateUtils.dateTimeFormatterJavaUtil.format(ZonedDateTime.now())}" name="startDate" id="startDate" required >
         </div>
 
         <div class="form-group">

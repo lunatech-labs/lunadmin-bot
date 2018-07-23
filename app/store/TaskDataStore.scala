@@ -1,17 +1,14 @@
 package store
 
 import java.time.ZonedDateTime
-import java.util.Date
-
 import javax.inject.{Inject, Singleton}
 import models._
-import play.api.{Configuration, Logger}
-import play.api.libs.json.{JsObject, Json}
+import play.api.Configuration
+import play.api.libs.json.Json
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.{Cursor, QueryOpts}
 import reactivemongo.bson.BSONDocument
 import reactivemongo.play.json.collection.JSONCollection
-
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
