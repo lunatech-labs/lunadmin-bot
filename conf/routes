@@ -28,6 +28,16 @@ GET         /userProfile                           controllers.HomeController.go
 GET         /editUserProfile                       controllers.HomeController.goToEditUserProfile
 POST        /updateProfile                         controllers.HomeController.updateProfile
 
+GET         /goToUserGroups                        controllers.HomeController.goToUserGroups
+GET         /deleteUserGroup                       controllers.HomeController.deleteUserGroup(name : String)
+POST        /addUserGroup                          controllers.HomeController.addUserGroup
+POST        /updateUserGroup                       controllers.HomeController.updateUserGroup
+
+GET         /goToTaskCategory                      controllers.HomeController.goToTaskCategory
+POST        /deleteTaskCategory                    controllers.HomeController.deleteTaskCategory
+POST        /addTaskCategory                       controllers.HomeController.addTaskCategory
+POST        /updateTaskCategory                    controllers.HomeController.updateTaskCategory
+
 POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
 POST        /paginationDT                          controllers.HomeController.paginationDisplayTask
 

@@ -18,7 +18,7 @@ import services.TaskScheduler
 
 
 @Singleton
-class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: TaskScheduler)(implicit assetsFinder: AssetsFinder, ec : ExecutionContext)
+class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: TaskScheduler)(implicit assetsFinder: AssetsFinder, ec: ExecutionContext)
   extends AbstractController(s.controllerComponent) {
 
   private val listOfStatus: List[String] = conf.underlying.getStringList("userStatus.default.tags").asScala.toList
@@ -27,7 +27,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
   private val localStorageDirectory = "userDataStorage/"
   private val localAssetDirectory = "public/"
   private val pictureExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"))
-  private val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"),Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+  private val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"), Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
 
 
   def index = Action { implicit request: Request[AnyContent] =>
@@ -68,10 +68,10 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
     val idOfUser = request.session.get("id").getOrElse("none")
     val res = s.userDataStore.findUserById(idOfUser)
 
-    res.map{ user =>
-      if(user.isDefined){
+    res.map { user =>
+      if (user.isDefined) {
         Ok(views.html.viewUserProfile(user.get)).flashing(request.flash)
-      }else{
+      } else {
         Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
       }
     }
@@ -86,10 +86,10 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
       listUserGroup <- s.userGroupDataStore.findEveryUserGroup()
     } yield (user, listUserGroup)
 
-    res.map{ e =>
-      if(e._1.isDefined){
-        Ok(views.html.editUserProfile(e._1.get,e._2,listOfStatus,listOfPaperName,timeZone,listOfTimeZone)).flashing(request.flash)
-      }else{
+    res.map { e =>
+      if (e._1.isDefined) {
+        Ok(views.html.editUserProfile(e._1.get, e._2, listOfStatus, listOfPaperName, timeZone, listOfTimeZone)).flashing(request.flash)
+      } else {
         Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
       }
     }
@@ -164,7 +164,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
   }
 
   def deleteTask(idTask: String, taskType: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
-    request.session.get("status").map{ status =>
+    request.session.get("status").map { status =>
       if (status == "Admin") {
         s.taskDataStore.deleteTask(idTask, taskType)
         taskScheduler.deleteTask(idTask)
@@ -193,7 +193,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
     }
   }
 
-  def orderListOfCategory(listOfTaskCategory: List[TaskCategory]): List[(String, List[String])] = {
+  private def orderListOfCategory(listOfTaskCategory: List[TaskCategory]): List[(String, List[String])] = {
     var res: List[(String, List[String])] = List()
     val listOfHeader = listOfTaskCategory.filter(p => p.isHeader)
     listOfHeader.foreach { f =>
@@ -273,12 +273,12 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
   }
 
   def deleteUser(idUser: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
-    request.session.get("status").map{ status =>
+    request.session.get("status").map { status =>
       if (status == "Admin") {
-        if(idUser == request.session.get("id").getOrElse("none")){
+        if (idUser == request.session.get("id").getOrElse("none")) {
           s.userDataStore.deleteUser(idUser)
           Redirect(routes.HomeController.userLogout())
-        }else{
+        } else {
           s.userDataStore.deleteUser(idUser)
           Redirect(routes.HomeController.displayUser(page, pageSize)).flashing("userDeleted" -> "The User Has Been Deleted")
         }
@@ -333,28 +333,28 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
         }
 
         if (userData.taskChoice == "single") {
-          val task : SinglePersonTask = SinglePersonTask(
-                                          description = userData.description,
-                                          startDate = userData.startDate,
-                                          endDate = userData.endDate,
-                                          status = userData.status,
-                                          employeeId = userData.selectSingleTask,
-                                          category = userData.category,
-                                          alert = finalListOfAlert
-                                        )
+          val task: SinglePersonTask = SinglePersonTask(
+            description = userData.description,
+            startDate = userData.startDate,
+            endDate = userData.endDate,
+            status = userData.status,
+            employeeId = userData.selectSingleTask,
+            category = userData.category,
+            alert = finalListOfAlert
+          )
 
           s.taskDataStore.addSinglePersonTask(task)
           taskScheduler.setSlackBotMessageForSingleTask(task)
 
         } else if (userData.taskChoice == "grouped") {
-          val task : GroupedTask = GroupedTask(
-                                          description = userData.description,
-                                          startDate = userData.startDate,
-                                          endDate = userData.endDate,
-                                          status = userData.status,
-                                          groupName = userData.selectGroupedTask,
-                                          category = userData.category,
-                                          alert = finalListOfAlert)
+          val task: GroupedTask = GroupedTask(
+            description = userData.description,
+            startDate = userData.startDate,
+            endDate = userData.endDate,
+            status = userData.status,
+            groupName = userData.selectGroupedTask,
+            category = userData.category,
+            alert = finalListOfAlert)
 
           s.taskDataStore.addGroupedTask(task)
           taskScheduler.setSlackBotMessageForGroupedTask(task)
@@ -388,8 +388,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
 
       userForm.bindFromRequest().fold(
         formWithErrors => {
-          Logger.info(formWithErrors.toString)
-          Logger.info(formWithErrors.errors.toString)
           Future.successful(
             Redirect(routes.HomeController.goToAddUser()).flashing("failure" -> "someFailure")
           )
@@ -407,23 +405,23 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
               val picture = body.file("picture").filter(p => p.filename.nonEmpty)
               val papers = body.files.filter(p => p.key.startsWith("paper") && p.filename.nonEmpty)
 
-              if ( picture.forall(p => pictureExtensionAccepted.contains(p.contentType))
+              if (picture.forall(p => pictureExtensionAccepted.contains(p.contentType))
                 && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
 
-                var picturePath : String = ""
+                var picturePath: String = ""
                 picture.map { picture =>
-                    s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filename = Paths.get(picture.filename).getFileName
-                    picturePath = picturePath + s"$localStorageDirectory$id/$filename"
-                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
+                  s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                  val filename = Paths.get(picture.filename).getFileName
+                  picturePath = picturePath + s"$localStorageDirectory$id/$filename"
+                  picture.ref.moveTo(Paths.get(localAssetDirectory + picturePath), replace = true)
                 }
 
                 var listOfPapers: List[(String, String)] = List()
                 papers.map { paper =>
-                    s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filePath : String = s"$localStorageDirectory$id/${paper.filename}"
-                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
-                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
+                  s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                  val filePath: String = s"$localStorageDirectory$id/${paper.filename}"
+                  listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                  paper.ref.moveTo(Paths.get(localAssetDirectory + filePath), replace = true)
                 }
 
                 s.userDataStore.addUser(User(userData.mail,
@@ -441,12 +439,12 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
                   timeZone = userData.timeZone))
 
                 Redirect(routes.HomeController.displayUser(0, 10)).flashing("success" -> "someSucess")
-              }else{
+              } else {
                 Redirect(routes.HomeController.goToAddUser()).flashing("badFileFormat" -> "badFileFormat")
               }
             }
 
-            val futureRes : Future[Result] = res.fold({
+            val futureRes: Future[Result] = res.fold({
               s.userDataStore.addUser(User(userData.mail,
                 userData.password,
                 userData.firstName,
@@ -581,8 +579,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
 
     updateForm.bindFromRequest().fold(
       formWithErrors => {
-        Logger.info(formWithErrors.toString)
-        Logger.info(formWithErrors.errors.toString)
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
       },
       userData => {
@@ -603,7 +599,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
             isActive = userData.isActive))
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
         }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
-  })
+      })
   }
 
   def updateSingleTask(idOfTask: String) = Action { implicit request: Request[AnyContent] =>
@@ -640,8 +636,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
 
     updateForm.bindFromRequest().fold(
       formWithErrors => {
-        Logger.info(formWithErrors.toString)
-        Logger.info(formWithErrors.errors.toString)
         Redirect(routes.HomeController.goToAddTask()).flashing("failure" -> "someFailure")
       },
       userData => {
@@ -663,7 +657,7 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
 
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
         }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
-  })
+      })
   }
 
   def updateUser(idOfUser: String) = Action.async { implicit request: Request[AnyContent] =>
@@ -689,8 +683,6 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
 
       userForm.bindFromRequest().fold(
         formWithErrors => {
-          Logger.info(formWithErrors.toString)
-          Logger.info(formWithErrors.errors.toString)
           Future.successful(
             Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("failure" -> "someFailure")
           )
@@ -710,51 +702,75 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
                   && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
 
                   var picturePath: Option[String] = None
-                  picture.map { picture =>
-                    s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filename = Paths.get(picture.filename).getFileName
-                    picturePath = Some(picturePath + s"$localStorageDirectory$idOfUser/$filename")
-                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
-                  }
+                  var finalListOfPapers: List[(String, String)] = List()
 
-                  var listOfPapers: List[(String, String)] = List()
-                  papers.map { paper =>
-                    s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filePath: String = s"$localStorageDirectory/$idOfUser/${paper.filename}"
-                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
-                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
-                  }
+                  s.userDataStore.findUserById(id).map { optUser =>
+                    optUser.foreach { user =>
 
-                  s.userDataStore.updateUser(idOfUser, User(userData.mail,
-                    userData.password,
-                    userData.firstName,
-                    userData.lastName,
-                    birthDate = Some(userData.birthDate),
-                    groupName = userData.groupName,
-                    status = userData.status,
-                    hireDate = Some(userData.hireDate),
-                    picture = picturePath,
-                    phone = userData.phone,
-                    cloudPaths = Some(listOfPapers),
-                    isActive = userData.isActive,
-                    timeZone = userData.timeZone))
+                      picturePath = user.picture
+                      picture.map { picture =>
+                        s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                        val filename = Paths.get(picture.filename).getFileName
+                        picturePath = Some(s"$localStorageDirectory$idOfUser/$filename")
+                        picture.ref.moveTo(Paths.get(localAssetDirectory + picturePath.get), replace = true)
+                      }
 
-                  if (id == idOfUser) {
-                    if (picturePath.isDefined) {
-                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
-                    } else {
-                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                      var listOfPapers: List[(String, String)] = List()
+                      papers.map { paper =>
+                        s"$localAssetDirectory$localStorageDirectory/$idOfUser".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                        val filePath: String = s"$localStorageDirectory/$idOfUser/${paper.filename}"
+                        listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                        paper.ref.moveTo(Paths.get(localAssetDirectory + filePath), replace = true)
+                      }
+
+                      user.cloudPaths.foreach { list =>
+                        for (paper <- listOfPaperName) {
+                          listOfPapers.find(p => p._1 == paper).map { e =>
+                            finalListOfPapers = finalListOfPapers :+ e
+                            e
+                          }.getOrElse {
+                            list.find(p => p._1 == paper).map { e =>
+                              finalListOfPapers = finalListOfPapers :+ e
+                              e
+                            }
+                          }
+                        }
+                      }
                     }
-                  } else {
-                    Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
+                    s.userDataStore.updateUser(idOfUser, User(userData.mail,
+                      userData.password,
+                      userData.firstName,
+                      userData.lastName,
+                      birthDate = Some(userData.birthDate),
+                      groupName = userData.groupName,
+                      status = userData.status,
+                      hireDate = Some(userData.hireDate),
+                      picture = picturePath,
+                      phone = userData.phone,
+                      cloudPaths = Some(finalListOfPapers),
+                      isActive = userData.isActive,
+                      timeZone = userData.timeZone))
+
+                    if (id == idOfUser) {
+                      if (picturePath.isDefined) {
+                        Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                      } else {
+                        Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
+                      }
+                    } else {
+                      Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
+                    }
                   }
                 } else {
-                  Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("badFileFormat" -> "badFileFormat")
+                  Future.successful(
+                    Redirect(routes.HomeController.displayFullDetailedUser(idOfUser)).flashing("badFileFormat" -> "badFileFormat")
+                  )
                 }
               }
-                val futureRes: Future[Result] = res.fold({
-                s.userDataStore.findUserById(idOfUser).map{optUser =>
-                  optUser.map{ user =>
+
+              val futureRes: Future[Result] = res.fold({
+                s.userDataStore.findUserById(idOfUser).map { optUser =>
+                  optUser.map { user =>
 
                     s.userDataStore.updateUser(idOfUser, User(userData.mail,
                       userData.password,
@@ -773,15 +789,16 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
                     if (id == idOfUser) {
                       if (user.picture.isDefined) {
                         Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> user.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
-                      }else {
+                      } else {
                         Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> idOfUser)
                       }
-                    }else {
+                    } else {
                       Redirect(routes.HomeController.displayUser(0, 10)).flashing("update" -> "someUpdate")
                     }
                   }.getOrElse(Redirect(routes.HomeController.displayUser(0, 10)).flashing("userNotFound" -> "someUpdate"))
                 }
-              })(x => Future.successful(x))
+              })(x => x)
+
               futureRes
             }.getOrElse(
               Future.successful(
@@ -814,11 +831,8 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
     val existingMails = s.userDataStore.findEveryExistingMailToCheckForRegistering(request.session.get("id"))
 
     existingMails.flatMap { list =>
-      Logger.info(list.toString)
       userForm.bindFromRequest().fold(
         formWithErrors => {
-          Logger.info(formWithErrors.toString)
-          Logger.info(formWithErrors.errors.toString)
           Future.successful(
             Redirect(routes.HomeController.goToEditUserProfile()).flashing("failure" -> "someFailure")
           )
@@ -838,97 +852,327 @@ class HomeController @Inject()(s : Starter,conf : Configuration, taskScheduler: 
                   && papers.forall(p => administrativPapersExtensionAccepted.contains(p.contentType))) {
 
                   var picturePath: Option[String] = None
-                  picture.map { picture =>
-                    s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filename = Paths.get(picture.filename).getFileName
-                    picturePath = Some(picturePath + s"$localStorageDirectory$id/$filename")
-                    picture.ref.moveTo(Paths.get(localAssetDirectory+picturePath), replace = true)
-                  }
+                  var finalListOfPapers: List[(String, String)] = List()
 
-                  var listOfPapers: List[(String, String)] = List()
-                  papers.map { paper =>
-                    s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
-                    val filePath: String = s"$localStorageDirectory/$id/${paper.filename}"
-                    listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
-                    paper.ref.moveTo(Paths.get(localAssetDirectory+filePath), replace = true)
-                  }
+                  s.userDataStore.findUserById(id).map { optUser =>
+                    optUser.foreach { user =>
 
-                  var finalListOfPapers : List[(String, String)] = List()
-                  s.userDataStore.findUserById(id).foreach{optUser =>
-                    optUser.foreach{user =>
-                      user.cloudPaths.foreach{list =>
-                        for(paper <- listOfPaperName){
-                         listOfPapers.find(p => p._1 == paper).map{ e =>
-                           finalListOfPapers = finalListOfPapers :+ e
-                           e
-                         }.getOrElse{
-                           list.find(p => p._1 == paper).map{ e =>
-                             finalListOfPapers = finalListOfPapers :+ e
-                             e
-                           }
-                         }
+                      picturePath = user.picture
+                      picture.map { picture =>
+                        s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                        val filename = Paths.get(picture.filename).getFileName
+                        picturePath = Some(s"$localStorageDirectory$id/$filename")
+                        picture.ref.moveTo(Paths.get(localAssetDirectory + picturePath.get), replace = true)
+                      }
+
+                      var listOfPapers: List[(String, String)] = List()
+                      papers.map { paper =>
+                        s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                        val filePath: String = s"$localStorageDirectory/$id/${paper.filename}"
+                        listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
+                        paper.ref.moveTo(Paths.get(localAssetDirectory + filePath), replace = true)
+                      }
+
+                      user.cloudPaths.foreach { list =>
+                        for (paper <- listOfPaperName) {
+                          listOfPapers.find(p => p._1 == paper).map { e =>
+                            finalListOfPapers = finalListOfPapers :+ e
+                            e
+                          }.getOrElse {
+                            list.find(p => p._1 == paper).map { e =>
+                              finalListOfPapers = finalListOfPapers :+ e
+                              e
+                            }
+                          }
                         }
-                        s.userDataStore.updateUser(id, User(userData.mail,
-                          userData.password,
-                          userData.firstName,
-                          userData.lastName,
-                          birthDate = Some(userData.birthDate),
-                          groupName = userData.groupName,
-                          status = userData.status,
-                          hireDate = Some(userData.hireDate),
-                          picture = picturePath,
-                          phone = userData.phone,
-                          cloudPaths = Some(finalListOfPapers),
-                          isActive = userData.isActive,
-                          timeZone = userData.timeZone))
                       }
                     }
-                  }
+                    s.userDataStore.updateUser(id, User(userData.mail,
+                      userData.password,
+                      userData.firstName,
+                      userData.lastName,
+                      birthDate = Some(userData.birthDate),
+                      groupName = userData.groupName,
+                      status = userData.status,
+                      hireDate = Some(userData.hireDate),
+                      picture = picturePath,
+                      phone = userData.phone,
+                      cloudPaths = Some(finalListOfPapers),
+                      isActive = userData.isActive,
+                      timeZone = userData.timeZone))
 
-                  if (picturePath.isDefined) {
-                    Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
-                  } else {
-                    Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                    if (picturePath.isDefined) {
+                      Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> picturePath.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                    } else {
+                      Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                    }
                   }
                 } else {
-                  Redirect(routes.HomeController.goToUserProfile()).flashing("badFileFormat" -> "badFileFormat")
+                  Future.successful(
+                    Redirect(routes.HomeController.goToUserProfile()).flashing("badFileFormat" -> "badFileFormat")
+                  )
                 }
               }
-                val futurRes : Future[Result] = res.fold({
-                  s.userDataStore.findUserById(id).map{optUser =>
-                    optUser.map{ user =>
 
-                      s.userDataStore.updateUser(id, User(userData.mail,
-                        userData.password,
-                        userData.firstName,
-                        userData.lastName,
-                        birthDate = Some(userData.birthDate),
-                        groupName = userData.groupName,
-                        status = userData.status,
-                        hireDate = Some(userData.hireDate),
-                        picture = user.picture,
-                        phone = userData.phone,
-                        cloudPaths = user.cloudPaths,
-                        isActive = userData.isActive,
-                        timeZone = userData.timeZone))
+              val futurRes: Future[Result] = res.fold({
+                s.userDataStore.findUserById(id).map { optUser =>
+                  optUser.map { user =>
+                    s.userDataStore.updateUser(id, User(userData.mail,
+                      userData.password,
+                      userData.firstName,
+                      userData.lastName,
+                      birthDate = Some(userData.birthDate),
+                      groupName = userData.groupName,
+                      status = userData.status,
+                      hireDate = Some(userData.hireDate),
+                      picture = user.picture,
+                      phone = userData.phone,
+                      cloudPaths = user.cloudPaths,
+                      isActive = userData.isActive,
+                      timeZone = userData.timeZone))
 
-                        if (user.picture.isDefined) {
-                          Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> user.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
-                        }else {
-                          Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
-                        }
-                    }.getOrElse(Redirect(routes.HomeController.index()).flashing("accountNotAvailable" -> "")).withNewSession
+                    if (user.picture.isDefined) {
+                      Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "picture" -> user.picture.get, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                    } else {
+                      Redirect(routes.HomeController.goToUserProfile()).flashing("update" -> "someUpdate").withSession("firstName" -> userData.firstName, "lastName" -> userData.lastName, "timeZone" -> userData.timeZone, "status" -> userData.status.get, "id" -> id)
+                    }
+                  }.getOrElse {
+                    Redirect(routes.HomeController.index).flashing("accountNotAvailable" -> "").withNewSession
                   }
-                })(x => Future.successful(x))
+                }
+              })(x => x)
 
               futurRes
-            }.getOrElse{
+            }.getOrElse {
               Future.successful(
-              Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page")
-              )}
+                Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page")
+              )
+            }
           }
         }
       )
     }
   }
+
+  def goToUserGroups() = Action.async { implicit request: Request[AnyContent] =>
+    val res = for {
+      listOfUserGroup <- s.userGroupDataStore.findEveryUserGroup()
+    } yield listOfUserGroup
+
+    res.map { e =>
+      request.session.get("status").map { status =>
+        if (status == "Admin") {
+          Ok(views.html.userGroupsManagment(e))
+        } else {
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
+  }
+
+  def deleteUserGroup(name: String) = Action { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        s.removeUserGroup(name)
+        Redirect(routes.HomeController.goToUserGroups())
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+  }
+
+  def updateUserGroup() = Action { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val userForm = Form(
+          mapping(
+            "updateId" -> text,
+            "updateName" -> text
+          )(UserGroup.apply)(UserGroup.unapply)
+        )
+
+        userForm.bindFromRequest().fold(
+          formWithErrors => {
+            Redirect(routes.HomeController.goToUserGroups()).flashing("failure" -> "someFailure")
+          },
+          userData => {
+            s.updateUserGroup(userData._id, userData.name)
+            Redirect(routes.HomeController.goToUserGroups())
+          }
+        )
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+  }
+
+  def addUserGroup() = Action { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val userForm = Form(
+          mapping(
+            "addName" -> text
+          )(UserGroupAddForm.apply)(UserGroupAddForm.unapply)
+        )
+
+        userForm.bindFromRequest().fold(
+          formWithErrors => {
+            Redirect(routes.HomeController.goToUserGroups()).flashing("failure" -> "someFailure")
+          },
+          userData => {
+            s.userGroupDataStore.insertUserGroup(
+              UserGroup(name = userData.name)
+            )
+            Redirect(routes.HomeController.goToUserGroups())
+          }
+        )
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+  }
+
+  def goToTaskCategory() = Action.async { implicit request: Request[AnyContent] =>
+    val res = for {
+      listOfTaskCategory <- s.taskCategoryDataStore.findAllTaskCategory()
+    } yield listOfTaskCategory
+
+    res.map { e =>
+      request.session.get("status").map { status =>
+        if (status == "Admin") {
+          Ok(views.html.taskCategoryManagment(orderListOfCategory(e)))
+        } else {
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
+  }
+
+  def deleteTaskCategory() = Action.async { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val taskForm = Form(
+          mapping(
+            "deleteName" -> text
+          )(TaskCategoryDeleteForm.apply)(TaskCategoryDeleteForm.unapply)
+        )
+
+        taskForm.bindFromRequest().fold(
+          formWithErrors => {
+            Future.successful(
+              Redirect(routes.HomeController.goToTaskCategory()).flashing("failure" -> "someFailure")
+            )
+          },
+          userData => {
+            s.taskCategoryDataStore.findTaskCategoryByName(userData.name).flatMap { tC =>
+              tC.idOfCategoryParent.map { id =>
+                s.removeTaskCategory(id)
+                Future.successful(
+                  Redirect(routes.HomeController.goToTaskCategory()).flashing("successDelete" -> "")
+                )
+              }.getOrElse {
+                s.taskCategoryDataStore.findHeaderTaskChildren(tC._id).flatMap { cList =>
+                  cList.foreach { e =>
+                    s.removeTaskCategory(e._id)
+                  }
+                  s.removeTaskCategory(tC._id)
+                  Future.successful(
+                    Redirect(routes.HomeController.goToTaskCategory()).flashing("successDelete" -> "")
+                  )
+                }
+              }
+            }
+          })
+
+      } else {
+        Future.successful(
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        )
+      }
+    }.getOrElse(
+      Future.successful(
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    )
+  }
+
+  def addTaskCategory() = Action { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val taskForm = Form(
+          mapping(
+            "addName" -> text,
+            "addIsHeader" -> boolean,
+            "addIdOfParent" -> optional(text)
+          )(TaskCategoryAddForm.apply)(TaskCategoryAddForm.unapply)
+        )
+
+        taskForm.bindFromRequest().fold(
+          formWithErrors => {
+            Redirect(routes.HomeController.goToTaskCategory()).flashing("failure" -> "someFailure")
+          },
+          userData => {
+            userData.idOfParent.map { name =>
+              if (name != "none") {
+                s.taskCategoryDataStore.findTaskCategoryByName(name).map { tC =>
+                  s.taskCategoryDataStore.insertTaskCategory(
+                    TaskCategory(name = userData.name, isHeader = userData.isHeader, idOfCategoryParent = Some(tC._id))
+                  )
+                }
+              } else {
+                s.taskCategoryDataStore.insertTaskCategory(
+                  TaskCategory(name = userData.name, isHeader = userData.isHeader)
+                )
+                name
+              }
+            }.getOrElse {
+              s.taskCategoryDataStore.insertTaskCategory(
+                TaskCategory(name = userData.name, isHeader = userData.isHeader)
+              )
+            }
+            Redirect(routes.HomeController.goToTaskCategory()).flashing("addCategorySuccessfully" -> "")
+          }
+        )
+      } else {
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      }
+    }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+  }
+
+  def updateTaskCategory() = Action.async { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val taskForm = Form(
+          mapping(
+            "updateSelect" -> text,
+            "updateName" -> text
+          )(TaskCategoryUpdateForm.apply)(TaskCategoryUpdateForm.unapply)
+        )
+
+        taskForm.bindFromRequest().fold(
+          formWithErrors => {
+            Future.successful(
+              Redirect(routes.HomeController.goToTaskCategory()).flashing("failure" -> "someFailure")
+            )
+          },
+          userData => {
+            s.taskCategoryDataStore.findTaskCategoryByName(userData.oldName).map { tC =>
+              s.taskCategoryDataStore.updateTaskCategory(tC._id,
+                TaskCategory(name = userData.newName, idOfCategoryParent = tC.idOfCategoryParent, isHeader = tC.isHeader)
+              )
+              Redirect(routes.HomeController.goToTaskCategory()).flashing("successUpdate" -> "")
+            }
+          }
+        )
+      } else {
+        Future.successful(
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        )
+      }
+    }.getOrElse(
+      Future.successful(
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      )
+    )
+  }
+
 }

@@ -1,0 +1,127 @@
+@import scala.concurrent.ExecutionContext
+@(listCategory : List[(String,List[String])])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+
+@main("LunAdmin", assetsFinder,session) {
+
+    @{
+        if(flash.get("addCategorySuccessfully").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong> The Category has been added !
+                </div>
+        }else if(flash.get("failure").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure !</strong>  Your form is not good !
+                </div>
+        }else if(flash.get("successDelete").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The deletion went well !
+                </div>
+        }else{
+                    <br/>
+        }
+    }
+    <div class="container">
+        <h2>Task Category</h2>
+        <br>
+        <div class="row">
+            <div class="col-sm">
+                <select class="form-control" style="height: 100%;" id="category"  multiple disabled name="category">
+                @for(list <- listCategory){
+                    @if(list._1 != ""){
+                        <optgroup label="@list._1">
+                        @for(taskCategory <- list._2){
+                            <option>@taskCategory</option>
+                        }
+                        </optgroup>
+                    }else{
+                        @for(taskCategory <- list._2){
+                            <option>@taskCategory</option>
+                        }
+                    }
+                }
+                </select>
+                <small class="form-text text-muted">You might need to scroll down.</small>
+                <br><br><br>
+            </div>
+            <div class="col-sm">
+                <form method="post" action="@routes.HomeController.addTaskCategory()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <label for="addName">Name</label>
+                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
+                        <br><label for="addIsHeader" >Is Header ?</label>
+                        <input type="checkbox" onclick="disableAddSelect()" class="form-control-sm" id="addIsHeader" name="addIsHeader">
+                        <br><label for="addIdOfParent">Category</label>
+                        <select name="addIdOfParent" id="addIdOfParent">
+                            <option value="none" selected="selected">Aucun</option>
+                            @for(header <- listCategory){
+                                @if(header._1 != ""){
+                                    <option value="@header._1">@header._1</option>
+                                }
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+
+                <br>
+                <form method="post" action="@routes.HomeController.deleteTaskCategory()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <select name="deleteName">
+                        @for(tCWithHeader <- listCategory){
+                            @if(tCWithHeader._1 != ""){
+                                <option value="@tCWithHeader._1">@tCWithHeader._1</option>
+                            }
+
+                            @for(tC <- tCWithHeader._2 ){
+                                <option value="@tC">@tC</option>
+                            }
+                        }
+                        </select>
+                        <button type="submit" class="btn btn-primary">Delete</button>
+                        <small class="form-text text-muted">Removing a Header will remove all his children.</small>
+                    </div>
+                </form>
+                <br>
+
+                <form method="post" action="@routes.HomeController.updateTaskCategory()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <select name="updateSelect">
+                        @for(tCWithHeader <- listCategory){
+                            @if(tCWithHeader._1 != ""){
+                                <option value="@tCWithHeader._1">@tCWithHeader._1</option>
+                            }
+
+                            @for(tC <- tCWithHeader._2 ){
+                                <option value="@tC">@tC</option>
+                            }
+                        }
+                        </select>
+                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="Nouveau Nom">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function disableAddSelect(){
+            var select = document.getElementById("addIdOfParent");
+            var checkbox = document.getElementById("addIsHeader");
+
+            if(checkbox.checked === true){
+                select.setAttribute("disabled","disabled")
+                checkbox.setAttribute("value","true")
+            }else{
+                select.removeAttribute("disabled")
+                select.setAttribute("value","false")
+            }
+        }
+    </script>
+}

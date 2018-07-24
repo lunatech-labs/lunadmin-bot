@@ -54,7 +54,7 @@
 
 
     <div class="form-group">
-        <a href="@user.picture.map(p => assetsFinder.path(p)).getOrElse()">Profile Image</a>
+        <a href="@{user.picture.map(s => assetsFinder.path(s))}">Profile Image</a>
     </div>
 
     @for(paper <- user.cloudPaths.getOrElse(List())){

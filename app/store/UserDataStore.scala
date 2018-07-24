@@ -17,7 +17,7 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
 
 
   def findUserById(id: String): Future[Option[User]] = {
-    val query = BSONDocument("_id" -> id)
+    val query = Json.obj("_id" -> id)
     val cursor : Future[Cursor[User]] = userCollection.map(f => f.find(query).cursor[User]())
     val futurUser : Future[Option[User]] = cursor.flatMap(_.headOption)
     futurUser
@@ -208,4 +208,17 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))
     userCollection.map(c => c.update(selectUpdate,updateQuery,multi = true))
   }
+
+  def replaceUserGroupFromUser(oldName : String, newName : String) = {
+    // add the new Name
+    val selectNewQuery = Json.obj("groupName" -> oldName)
+    val addNewQuery = Json.obj("$push" -> Json.obj("groupName" -> newName))
+    userCollection.map(c => c.update(selectNewQuery,addNewQuery,multi = true))
+
+    // Remove the old name
+    val selectOldQuery = Json.obj("groupName" -> newName)
+    val removeOldQuery = Json.obj("$pull" -> Json.obj("groupName" -> oldName))
+    userCollection.map(c => c.update(selectOldQuery,removeOldQuery,multi = true))
+  }
+
 }

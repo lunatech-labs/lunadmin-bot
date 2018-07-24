@@ -51,9 +51,9 @@
           </div>
         @if(session.get("firstName").isDefined){
             <div style="float:right">
-                <img class="rounded" style="float:left" width="65" height="65" src="@session.get("picture")" alt="No image is defined">
+                <img class="rounded" style="float:left" width="65" height="65" src="@{session.get("picture").map(s => assetsFinder.path(s))}" alt="No image is defined">
                 <div class="pl-3" style="float:right">
-                    <a href="@routes.HomeController.goToUserProfile()"><p style="font-size: small;margin-bottom: 0;color:white;text-decoration: none">@session.get("firstName") <br> @session.get("lastName")</p></a>
+                <a href="@routes.HomeController.goToUserProfile()"><p style="font-size: small;margin-bottom: 0;color:white;text-decoration: none">@session.get("firstName") <br> @session.get("lastName")</p></a>
                 <a href="@routes.HomeController.userLogout"><button class="btn-sm btn-primary" style="font-size: small;padding:0 0">Logout</button></a>
                 </div>
             </div>

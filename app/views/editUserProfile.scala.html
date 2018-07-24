@@ -18,7 +18,7 @@
         }
     }
 
-    <form method="post" action="@routes.HomeController.updateProfile()">
+    <form method="post" enctype="multipart/form-data" action="@routes.HomeController.updateProfile()">
         @helper.CSRF.formField
         <div class="form-group">
             <label for="firstName">First Name</label>

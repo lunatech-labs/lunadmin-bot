@@ -49,12 +49,29 @@ class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore,
     }
   }
 
-
-  def removeUserGroup(userGroupName : String) = {
+  def removeUserGroup(userGroupName : String) : Unit = {
     userDataStore.removeUserGroupFromUser(userGroupName)
+    taskDataStore.removeUserGroupFromTask(userGroupName)
     userGroupDataStore.deleteUserGroup(userGroupName)
-    taskDataStore.removeTaskCategoryFromTask(userGroupName)
   }
+
+  def updateUserGroup(userGroupId : String , newUserGroupName : String) : Unit = {
+    userGroupDataStore.findUserGroupById(userGroupId).map{ uG =>
+      userDataStore.replaceUserGroupFromUser(uG.name,newUserGroupName)
+      taskDataStore.replaceUserGroupFromTask(uG.name,newUserGroupName)
+      userGroupDataStore.updateUserGroup(userGroupId,newUserGroupName)
+    }
+  }
+
+  def removeTaskCategory(taskCategoryId : String) : Unit = {
+    taskCategoryDataStore.findTaskCategoryById(taskCategoryId).map{tC =>
+      taskDataStore.removeTaskCategoryFromTask(tC.name)
+      taskCategoryDataStore.deleteTaskCategory(tC._id)
+    }
+
+  }
+
+
 }
 
 

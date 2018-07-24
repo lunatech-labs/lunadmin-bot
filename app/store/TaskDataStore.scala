@@ -179,17 +179,17 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     }
   }
 
-  def addSinglePersonTask(task : SinglePersonTask) = {
+  def addSinglePersonTask(task : SinglePersonTask) : Unit = {
     val jsonDoc = SinglePersonTask.fmt.writes(task)
     taskCollection.map(c => c.insert(jsonDoc))
   }
 
-  def addGroupedTask(task : GroupedTask) = {
+  def addGroupedTask(task : GroupedTask) : Unit = {
     val jsonDoc = GroupedTask.fmt.writes(task)
     taskCollection.map(c => c.insert(jsonDoc))
   }
 
-  def updateSinglePersonTask(id : String, task: SinglePersonTask ) = {
+  def updateSinglePersonTask(id : String, task: SinglePersonTask) : Unit = {
     val selectUpdate = Json.obj("_id" -> id)
     val updateQuery = Json.obj("description" -> task.description,
                                "startDate" -> Json.obj("$date" -> task.startDate.toInstant.toEpochMilli),
@@ -204,7 +204,7 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     taskCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 
-  def updateGroupedTask(id : String, task: GroupedTask ) = {
+  def updateGroupedTask(id : String, task: GroupedTask) : Unit = {
     val selectUpdate = Json.obj("_id" -> id)
     val updateQuery = Json.obj("description" -> task.description,
                                "startDate" -> Json.obj("$date" -> task.startDate.toInstant.toEpochMilli),
@@ -219,7 +219,7 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     taskCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 
-  def deleteTask(idOfTask : String, taskType : String) = {
+  def deleteTask(idOfTask : String, taskType : String) : Unit = {
     if(taskType == "SINGLE"){
      val task = findSinglePersonTaskById(idOfTask)
       task.map{t =>
@@ -254,15 +254,27 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,conf :Confi
     }
   }
 
-  def removeTaskCategoryFromTask(taskCategoryName : String) = {
+  def removeTaskCategoryFromTask(taskCategoryName : String) : Unit = {
     val selectUpdate = Json.obj()
     val updateQuery = Json.obj("$pull" -> Json.obj("category" -> taskCategoryName))
     taskCollection.map(c => c.update(selectUpdate,updateQuery,multi = true))
   }
 
-  def removeUserGroupFromTask(userGroupName : String) = {
+  def removeUserGroupFromTask(userGroupName : String) : Unit = {
     val selectUpdate = Json.obj()
     val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))
     taskCollection.map(c => c.update(selectUpdate,updateQuery,multi = true))
+  }
+
+  def replaceUserGroupFromTask(oldName : String, newName : String) : Unit = {
+    // add the new Name
+    val selectNewQuery = Json.obj("groupName" -> oldName)
+    val addNewQuery = Json.obj("$push" -> Json.obj("groupName" -> newName))
+    taskCollection.map(c => c.update(selectNewQuery,addNewQuery,multi = true))
+
+    // Remove the old name
+    val selectOldQuery = Json.obj("groupName" -> newName)
+    val removeOldQuery = Json.obj("$pull" -> Json.obj("groupName" -> oldName))
+    taskCollection.map(c => c.update(selectOldQuery,removeOldQuery,multi = true))
   }
 }

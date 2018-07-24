@@ -44,12 +44,12 @@
                 <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
                 <a href="@routes.HomeController.goToAddUser"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
 
-                @*<a class="btn-sm btn-primary float-right px-0 ml-5" >User Group</a>*@
+                <a href="@routes.HomeController.goToUserGroups" class="btn-sm btn-primary float-right ml-5" style="font-size:small padding:0 0" >User Group</a>
             </div>
         </div>
         <input class="form-control" id="myInput" type="text" placeholder="Search..">
         <br>
-        <table class="table table-bordered table-striped small">
+        <table class="table table-hover table-bordered table-striped small">
             <thead>
                 <tr>
                     <th>Id</th>

@@ -18,14 +18,14 @@ class TaskCategoryDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,co
   private val listOfBaseTaskCategoryHeader = conf.underlying.getStringList("taskCategory.default.tags")
   var listOfBaseTaskCategoryWithHeader : List[(String,List[String])]= List()
 
-  def initializeListOfBaseTaskCategory() = {
+  def initializeListOfBaseTaskCategory() : Unit = {
     listOfBaseTaskCategoryHeader.forEach{h =>
       listOfBaseTaskCategoryWithHeader = listOfBaseTaskCategoryWithHeader :+ (h,conf.underlying.getStringList("taskCategory.default."+h).asScala.toList)
     }
   }
 
   // function to insert the Base Task Category if they does not exist in the MongoDB
-  def initializeTaskCategoryData() = {
+  def initializeTaskCategoryData() : Unit = {
     val listOfExistingUserGroup = findAllTaskCategory().map(f => f.map(element => element.name))
     listOfExistingUserGroup.map{listExisting =>
       listOfBaseTaskCategoryWithHeader.foreach{ e =>
@@ -45,15 +45,31 @@ class TaskCategoryDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,co
     }
   }
 
+  def findTaskCategoryById(idOfTaskCategory : String) : Future[TaskCategory] = {
+    val query = Json.obj("_id" -> idOfTaskCategory)
+    taskCategoryCollection.flatMap(
+      _.find(query)
+        .cursor[TaskCategory]()
+        .head
+    )
+  }
 
+  def findTaskCategoryByName(nameOfTasKCategory : String) : Future[TaskCategory] = {
+    val query = Json.obj("name" -> nameOfTasKCategory)
+    taskCategoryCollection.flatMap(
+      _.find(query)
+        .cursor[TaskCategory]()
+        .head
+    )
+  }
 
-  def insertTaskCategory(taskCategory : TaskCategory) = {
+  def insertTaskCategory(taskCategory : TaskCategory) : Unit = {
     val javaDoc = TaskCategory.fmt.writes(taskCategory)
     taskCategoryCollection.map(c => c.insert(javaDoc))
   }
 
-  def deleteTaskCategory(taskCategoryName : String) = {
-    val removeQuery = Json.obj("name" -> taskCategoryName)
+  def deleteTaskCategory(taskCategoryId : String) : Unit = {
+    val removeQuery = Json.obj("_id" -> taskCategoryId)
     taskCategoryCollection.map(c => c.remove(removeQuery))
   }
 
@@ -75,7 +91,7 @@ class TaskCategoryDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,co
     )
   }
 
-  private def findHeaderTaskChildren(idOfHeader : String) = {
+  def findHeaderTaskChildren(idOfHeader : String) : Future[List[TaskCategory]] = {
     val query = BSONDocument("idOfCategoryParent" -> idOfHeader)
     taskCategoryCollection.flatMap(
       _.find(query)
@@ -84,12 +100,11 @@ class TaskCategoryDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,co
     )
   }
 
-  private def findTaskCategoryByName(nameOfTask : String) = {
-    val query = BSONDocument("name" -> nameOfTask)
-    taskCategoryCollection.flatMap(
-      _.find(query)
-        .cursor[TaskCategory]()
-        .head
-    )
+  def updateTaskCategory(idOfTC : String, newTC : TaskCategory) : Unit = {
+    val selectQuery = Json.obj("_id" -> idOfTC)
+    val updateQuery = Json.obj("name" -> newTC.name,
+                               "idOfCategoryParent" -> newTC.idOfCategoryParent,
+                               "isHeader" -> newTC.isHeader)
+    taskCategoryCollection.map(c => c.update(selectQuery,updateQuery))
   }
 }

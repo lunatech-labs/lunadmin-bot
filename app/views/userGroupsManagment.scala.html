@@ -1,0 +1,75 @@
+@import scala.concurrent.ExecutionContext
+@(listOfUserGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+
+@main("LunAdmin", assetsFinder,session) {
+
+    <br>
+
+    <div class="container">
+        <h2>User Groups</h2>
+        <div class="container">
+            <div class="row">
+                <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
+            </div>
+        </div>
+        <input class="form-control" id="myInput" type="text" placeholder="Search..">
+        <br>
+        <div class="row">
+            <div class="col-sm">
+            <table class="table-sm table-hover table-bordered table-striped small">
+                <thead>
+                    <td>name</td>
+                    <td></td>
+                </thead>
+                <tbody id="myTable">
+                @for(uG <- listOfUserGroup) {
+                    <tr>
+                        <td>@uG.name</td>
+                        <td><a onclick="return confirm('Delete Group : @uG.name ');" href="@routes.HomeController.deleteUserGroup(uG.name)" class="btn btn-danger btn-sm" >delete</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+            <div class="col-sm">
+                <form method="post" action="@routes.HomeController.addUserGroup()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <label for="addName">Name</label>
+                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+
+                <br><br><br>
+
+                <form method="post" action="@routes.HomeController.updateUserGroup()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <select name="updateId">
+                            @for(uG <- listOfUserGroup){
+                                <option value="@uG._id">@uG.name</option>
+                            }
+                        </select>
+                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="Nouveau Nom">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <script>
+            $(document).ready(function(){
+                $("#myInput").on("keyup", function() {
+                    var value = $(this).val().toLowerCase();
+                    $("#myTable tr").filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                });
+            });
+    </script>
+}

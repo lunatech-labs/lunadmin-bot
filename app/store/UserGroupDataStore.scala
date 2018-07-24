@@ -38,6 +38,15 @@ class UserGroupDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf 
     userGroupCollection.map(c => c.remove(removeQuery))
   }
 
+  def findUserGroupById(userGroupId : String) : Future[UserGroup] = {
+    val query = Json.obj("_id" -> userGroupId)
+    userGroupCollection.flatMap(
+      _.find(query)
+        .cursor[UserGroup]()
+        .head
+    )
+  }
+
   def findAllUserGroup(page : Int, pageSize : Int) : Future[List[UserGroup]] = {
     val query = BSONDocument()
     userGroupCollection.flatMap(
@@ -64,5 +73,11 @@ class UserGroupDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi ,conf 
         .cursor[UserGroup]()
         .collect[List](-1, Cursor.FailOnError[List[UserGroup]]())
     )
+  }
+
+  def updateUserGroup(id: String ,name: String) : Unit = {
+    val selectUpdate = Json.obj("_id" -> id)
+    val updateQuery = Json.obj("name" -> name)
+    userGroupCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 }
