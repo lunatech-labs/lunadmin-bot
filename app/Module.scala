@@ -3,7 +3,7 @@ import java.time.Clock
 
 import controllers.Starter
 import play.api.Configuration
-import services.{ApplicationTimer, AtomicCounter, Counter}
+import services.{ApplicationTimer, AtomicCounter, Counter, TaskScheduler}
 import store.{TaskCategoryDataStore, TaskDataStore, UserDataStore, UserGroupDataStore}
 
 /**
@@ -31,6 +31,7 @@ class Module extends AbstractModule {
     bind(classOf[TaskDataStore]).asEagerSingleton()
     bind(classOf[TaskCategoryDataStore]).asEagerSingleton()
     bind(classOf[UserGroupDataStore]).asEagerSingleton()
+    bind(classOf[TaskScheduler]).asEagerSingleton()
     bind(classOf[Starter]).asEagerSingleton()
   }
 

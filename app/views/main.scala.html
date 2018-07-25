@@ -39,11 +39,11 @@
 
               @if(session.get("status").isDefined){
                 <li class="nav-item" >
-                    <a class="nav-link text-white" href="@routes.HomeController.displayTasks(0,10)">Task List</a>
+                    <a class="nav-link text-white" href="@routes.HomeController.displayTasks(0,10)">Tasks</a>
                 </li>
                 @if(session.get("status").get == "Admin"){
                 <li class="nav-item" >
-                    <a class="nav-link text-white" href="@routes.HomeController.displayUser(0,10)">User List</a>
+                    <a class="nav-link text-white" href="@routes.HomeController.displayUser(0,10)">Users</a>
                 </li>
                 }
               }

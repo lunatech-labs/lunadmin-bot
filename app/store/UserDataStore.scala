@@ -23,6 +23,25 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     futurUser
   }
 
+  def findEveryActiveUser() : Future[List[User]] = {
+    val query = BSONDocument("isActive" -> true)
+    userCollection.flatMap(
+      _.find(query)
+        .cursor[User]()
+        .collect[List](-1, Cursor.FailOnError[List[User]]())
+    )
+  }
+
+  def findUsersByUserGroup(userGroupName : String) : Future[List[User]] = {
+    val query = Json.obj("isActive" -> true,"groupName" -> userGroupName)
+
+    userCollection.flatMap(
+      _.find(query)
+        .cursor[User]()
+        .collect[List](-1, Cursor.FailOnError[List[User]]())
+    )
+  }
+
   def findAllUserDescription(page : Int, pageSize : Int) : Future[List[UserDescription]] = {
     val query = BSONDocument("isActive" -> true)
     userCollection.flatMap(
@@ -203,10 +222,34 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataSto
     }
   }
 
-  def removeUserGroupFromUser(userGroupName : String) = {
+  def removeUsersGroupFromUser(userGroupName : String) = {
     val selectUpdate = Json.obj()
     val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))
     userCollection.map(c => c.update(selectUpdate,updateQuery,multi = true))
+  }
+
+  def addUserToUserGroup(user : User, userGroupName : String) = {
+    updateUser(user._id,User(
+      mail = user.mail,
+      password = user.password,
+      firstName = user.firstName,
+      lastName = user.lastName,
+      birthDate = user.birthDate,
+      status = user.status,
+      hireDate = user.hireDate,
+      picture = user.picture,
+      phone = user.phone,
+      cloudPaths = user.cloudPaths,
+      isActive = user.isActive,
+      timeZone = user.timeZone,
+      groupName = user.groupName.map(l => Some(l :+ userGroupName)).getOrElse(Some(List(userGroupName)))
+    ))
+  }
+
+  def removeUserFromUserGroup(idOfUser : String, userGroupName : String) = {
+    val selectUpdate = Json.obj("_id" -> idOfUser)
+    val updateQuery = Json.obj("$pull" -> Json.obj("groupName" -> userGroupName))
+    userCollection.map(c => c.update(selectUpdate,updateQuery))
   }
 
   def replaceUserGroupFromUser(oldName : String, newName : String) = {

@@ -21,6 +21,7 @@ libraryDependencies += "com.h2database" % "h2" % "1.4.197"
 libraryDependencies += "com.github.pathikrit" %% "better-files" % "3.4.0"
 libraryDependencies += "com.lunatech" % "scala-slack-client" % "0.2.3"
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.14"
+libraryDependencies += "com.enragedginger" %% "akka-quartz-scheduler" % "1.6.1-akka-2.5.x"
 
 libraryDependencies += "org.reactivemongo" %% "play2-reactivemongo" % "0.13.0-play26"
 

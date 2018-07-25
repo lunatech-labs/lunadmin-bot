@@ -34,7 +34,7 @@
             <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
                 @if(session.get("status").contains("Admin")){
                     <a href="@routes.HomeController.goToAddTask"><img class="float-right" src="http://icons.iconarchive.com/icons/iconarchive/red-orb-alphabet/256/Math-plus-icon.png" width="25" height="25"></a>
-                    <a href="@routes.HomeController.goToTaskCategory()" class="btn-sm btn-primary float-right ml-5" style="font-size:small padding:0 0" >Task Category</a>
+                    <a href="@routes.HomeController.goToTaskCategory()"  class="btn-sm btn-danger float-right ml-5" style="font-size: small;padding:0 0;height:fit-content">Task Category</a>
                 }
             </div>
         </div>

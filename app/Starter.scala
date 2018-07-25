@@ -1,5 +1,6 @@
 package controllers
 
+import akka.actor.ActorSystem
 import com.google.inject.Singleton
 import javax.inject.Inject
 import models._
@@ -8,20 +9,13 @@ import play.api.Configuration
 import play.api.mvc.{AbstractController, ControllerComponents}
 import play.modules.reactivemongo.{MongoController, ReactiveMongoApi, ReactiveMongoComponents}
 import store.{TaskCategoryDataStore, TaskDataStore, UserDataStore, UserGroupDataStore}
-
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
-import better.files._
-import better.files.File._
 import com.lunatech.slack.client.api.SlackClient
-import com.lunatech.slack.client.models.{AttachmentField, ChatEphemeral}
-import reactivemongo.bson.BSONObjectID
-
-
 
 
 @Singleton
-class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore, uDS : UserDataStore, tDS: TaskDataStore, configuration : Configuration, cc: ControllerComponents, val reactiveMongoApi: ReactiveMongoApi)(implicit assetsFinder: AssetsFinder, ec: ExecutionContext)
+class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore, uDS : UserDataStore, tDS: TaskDataStore, configuration : Configuration, cc: ControllerComponents, val reactiveMongoApi: ReactiveMongoApi)(implicit assetsFinder: AssetsFinder, actorSystem: ActorSystem, ec: ExecutionContext)
   extends AbstractController(cc) with MongoController with ReactiveMongoComponents {
 
   val controllerComponent : ControllerComponents = cc
@@ -50,7 +44,7 @@ class Starter @Inject()(tCDS : TaskCategoryDataStore ,uGDS : UserGroupDataStore,
   }
 
   def removeUserGroup(userGroupName : String) : Unit = {
-    userDataStore.removeUserGroupFromUser(userGroupName)
+    userDataStore.removeUsersGroupFromUser(userGroupName)
     taskDataStore.removeUserGroupFromTask(userGroupName)
     userGroupDataStore.deleteUserGroup(userGroupName)
   }

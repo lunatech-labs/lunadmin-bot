@@ -32,6 +32,9 @@ GET         /goToUserGroups                        controllers.HomeController.go
 GET         /deleteUserGroup                       controllers.HomeController.deleteUserGroup(name : String)
 POST        /addUserGroup                          controllers.HomeController.addUserGroup
 POST        /updateUserGroup                       controllers.HomeController.updateUserGroup
+POST        /addUserToUserGroup                    controllers.HomeController.addUserToUserGroup(userGroupName : String)
+POST        /removeUserFromUserGroup               controllers.HomeController.removeUserFromUserGroup(userGroupName : String)
+GET         /goToDetailUserGroup                   controllers.HomeController.goToUserGroupDetail(userGroupName : String)
 
 GET         /goToTaskCategory                      controllers.HomeController.goToTaskCategory
 POST        /deleteTaskCategory                    controllers.HomeController.deleteTaskCategory

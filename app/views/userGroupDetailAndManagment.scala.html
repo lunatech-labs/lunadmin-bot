@@ -1,0 +1,101 @@
+@import scala.concurrent.ExecutionContext
+@(userGroupName : String,listOfUserAlreadyInGroup : List[User],listOfEveryUser : List[User])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+
+@main("LunAdmin", assetsFinder,session) {
+
+    @{
+        if(flash.get("successAdd").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong> The User Group has been added !
+                </div>
+        }else if(flash.get("failure").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure !</strong>  Your form is not good !
+                </div>
+        }else if(flash.get("successDelete").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The deletion went well !
+                </div>
+        }else if(flash.get("successUpdate").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The update went well !
+                </div>
+        }else{
+                    <br/>
+        }
+    }
+
+    <div class="container">
+        <h2>@userGroupName</h2>
+        <div class="container">
+            <div class="row">
+                <p>Type something in the input field to search the table :</p> &nbsp &nbsp &nbsp
+            </div>
+        </div>
+        <input class="form-control" id="myInput" type="text" placeholder="Search..">
+        <br>
+        <div class="row">
+            <div class="col">
+                <table class="table-sm table-hover table-bordered table-striped small table-responsive" style="width: fit-content">
+                    <thead>
+                        <td>name</td>
+                    </thead>
+                    <tbody id="myTable">
+                    @for(uG <- listOfUserAlreadyInGroup) {
+                        <tr>
+                            <td>@{s"${uG.firstName} ${uG.lastName}"}</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-sm">
+                <form method="post" action="@routes.HomeController.addUserToUserGroup(userGroupName)">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <small class="form-text text-muted">Add a user to the group.</small>
+                        <select name="addId">
+                        @for(uG <- listOfEveryUser.filter(u => !listOfUserAlreadyInGroup.contains(u))){
+                            <option value="@uG._id">@{s"${uG.firstName} ${uG.lastName}"}</option>
+                        }
+                        </select>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                    </div>
+                </form>
+
+                <br>
+
+                <form method="post" action="@routes.HomeController.removeUserFromUserGroup(userGroupName)">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <small class="form-text text-muted">Remove a user from the group.</small>
+                        <select name="deleteId">
+                        @for(uG <- listOfUserAlreadyInGroup){
+                            <option value="@uG._id">@{s"${uG.firstName} ${uG.lastName}"}</option>
+                        }
+                        </select>
+                        <button type="submit" class="btn btn-primary">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <script>
+            $(document).ready(function(){
+                $("#myInput").on("keyup", function() {
+                    var value = $(this).val().toLowerCase();
+                    $("#myTable tr").filter(function() {
+                        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                    });
+                });
+            });
+    </script>
+}

@@ -73,7 +73,7 @@ if(flash.get("failure").isDefined){
             <div id="alertSubContainer@e.hashCode()">
                 <input value="@task.getAlertHtmlForm(e._1,e._2)._1" class="form-control-sm" type="number" name="alertNumber@e.hashCode()" required>
                 <select name="alertSelect@e.hashCode()">
-                    @for(time <- Seq(("minute","minute"),("hour","heure"),("day","jour"))){
+                    @for(time <- Seq(("minute","minute"),("hour","heure"),("day","jour"),("week","semaine"),("month","mois"),("year","année"))){
                         @if(time._1 == e._2){
                             <option value="@time._1" selected="selected">@time._2</option>
                         }else{

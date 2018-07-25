@@ -1,9 +1,33 @@
 @import scala.concurrent.ExecutionContext
-@(listOfUserGroup : List[UserGroup])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+@(listOfUserGroup : List[UserGroup],listOfUser : List[User])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
-    <br>
+    @{
+        if(flash.get("successAdd").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong> The User Group has been added !
+                </div>
+        }else if(flash.get("failure").isDefined){
+                <div class="alert alert-warning alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Failure !</strong>  Your form is not good !
+                </div>
+        }else if(flash.get("successDelete").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The deletion went well !
+                </div>
+        }else if(flash.get("successUpdate").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The update went well !
+                </div>
+        }else{
+                    <br/>
+        }
+    }
 
     <div class="container">
         <h2>User Groups</h2>
@@ -15,16 +39,28 @@
         <input class="form-control" id="myInput" type="text" placeholder="Search..">
         <br>
         <div class="row">
-            <div class="col-sm">
-            <table class="table-sm table-hover table-bordered table-striped small">
+            <div class="col">
+            <table class="table-sm table-hover table-bordered table-striped small table-responsive" style="width: fit-content">
                 <thead>
                     <td>name</td>
+                    <td>users</td>
+                    <td></td>
                     <td></td>
                 </thead>
                 <tbody id="myTable">
                 @for(uG <- listOfUserGroup) {
                     <tr>
                         <td>@uG.name</td>
+                        <td style="max-width: 250px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;'">
+                            @{
+                             var finalStringOfUsers = ""
+                             for(user <- listOfUser.filter(u => u.groupName.exists(l => l.contains(uG.name)))){
+                                 finalStringOfUsers = finalStringOfUsers + s"${user.firstName} ${user.lastName},"
+                             }
+                             finalStringOfUsers.dropRight(1)
+                            }
+                        </td>
+                        <td><a href="@routes.HomeController.goToUserGroupDetail(uG.name)" class="btn btn-primary text-white btn-sm" >Manage</a></td>
                         <td><a onclick="return confirm('Delete Group : @uG.name ');" href="@routes.HomeController.deleteUserGroup(uG.name)" class="btn btn-danger btn-sm" >delete</a></td>
                     </tr>
                 }
@@ -35,17 +71,19 @@
                 <form method="post" action="@routes.HomeController.addUserGroup()">
                     @helper.CSRF.formField
                     <div class="form-group">
+                        <small class="form-text text-muted">Add a new group.</small>
                         <label for="addName">Name</label>
                         <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
                         <button type="submit" class="btn btn-primary">Add</button>
                     </div>
                 </form>
 
-                <br><br><br>
+                <br>
 
                 <form method="post" action="@routes.HomeController.updateUserGroup()">
                     @helper.CSRF.formField
                     <div class="form-group">
+                        <small class="form-text text-muted">Modify the name of a group.</small>
                         <select name="updateId">
                             @for(uG <- listOfUserGroup){
                                 <option value="@uG._id">@uG.name</option>

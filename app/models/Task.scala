@@ -27,6 +27,9 @@ trait Task {
       case "minute" => (duration.toMinutes, alertSelect)
       case "hour" =>  (duration.toHours, alertSelect)
       case "day" => (duration.toDays, alertSelect)
+      case "week" => (duration.toDays/7,alertSelect)
+      case "month" => (duration.toDays/30,alertSelect)
+      case "year" => (duration.toDays/365,alertSelect)
     }
   }
 

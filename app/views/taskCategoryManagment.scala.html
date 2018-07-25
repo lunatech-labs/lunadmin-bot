@@ -4,7 +4,7 @@
 @main("LunAdmin", assetsFinder,session) {
 
     @{
-        if(flash.get("addCategorySuccessfully").isDefined){
+        if(flash.get("successAdd").isDefined){
                 <div class="alert alert-success alert-dismissible">
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Success !</strong> The Category has been added !
@@ -18,6 +18,11 @@
                 <div class="alert alert-success alert-dismissible">
                 <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
                 <strong>Success !</strong>  The deletion went well !
+                </div>
+        }else if(flash.get("successUpdate").isDefined){
+                <div class="alert alert-success alert-dismissible">
+                <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a>
+                <strong>Success !</strong>  The update went well !
                 </div>
         }else{
                     <br/>
@@ -52,7 +57,7 @@
                     <div class="form-group">
                         <label for="addName">Name</label>
                         <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
-                        <br><label for="addIsHeader" >Is Header ?</label>
+                        <br><label for="addIsHeader" >Is Top Level ?</label>
                         <input type="checkbox" onclick="disableAddSelect()" class="form-control-sm" id="addIsHeader" name="addIsHeader">
                         <br><label for="addIdOfParent">Category</label>
                         <select name="addIdOfParent" id="addIdOfParent">
@@ -74,7 +79,7 @@
                         <select name="deleteName">
                         @for(tCWithHeader <- listCategory){
                             @if(tCWithHeader._1 != ""){
-                                <option value="@tCWithHeader._1">@tCWithHeader._1</option>
+                                <option value="@tCWithHeader._1">H - @tCWithHeader._1</option>
                             }
 
                             @for(tC <- tCWithHeader._2 ){
@@ -94,7 +99,7 @@
                         <select name="updateSelect">
                         @for(tCWithHeader <- listCategory){
                             @if(tCWithHeader._1 != ""){
-                                <option value="@tCWithHeader._1">@tCWithHeader._1</option>
+                                <option value="@tCWithHeader._1">H - @tCWithHeader._1</option>
                             }
 
                             @for(tC <- tCWithHeader._2 ){
@@ -116,11 +121,11 @@
             var checkbox = document.getElementById("addIsHeader");
 
             if(checkbox.checked === true){
-                select.setAttribute("disabled","disabled")
-                checkbox.setAttribute("value","true")
+                select.setAttribute("disabled","disabled");
+                checkbox.setAttribute("value","true");
             }else{
-                select.removeAttribute("disabled")
-                select.setAttribute("value","false")
+                select.removeAttribute("disabled");
+                select.setAttribute("value","false");
             }
         }
     </script>

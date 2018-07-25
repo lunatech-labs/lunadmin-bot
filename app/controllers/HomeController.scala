@@ -28,7 +28,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
   private val localAssetDirectory = "public/"
   private val pictureExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"))
   private val administrativPapersExtensionAccepted = Seq(Some("image/jpeg"), Some("image/png"), Some("application/pdf"), Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-
+  val tS : TaskScheduler = taskScheduler
 
   def index = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index())
@@ -329,7 +329,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
       userData => {
         var finalListOfAlert: List[(Long, String)] = List()
         for (e <- userData.alertNumbers.indices) {
-          finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
+          finalListOfAlert = finalListOfAlert :+ (createDurationFromAlert(userData.alertNumbers(e).toLong, userData.alertSelects(e)), userData.alertSelects(e))
         }
 
         if (userData.taskChoice == "single") {
@@ -585,10 +585,10 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
         request.session.get("id").map { id =>
           var finalListOfAlert: List[(Long, String)] = List()
           for (e <- userData.alertNumbers.indices) {
-            finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
+            finalListOfAlert = finalListOfAlert :+ (createDurationFromAlert(userData.alertNumbers(e).toLong, userData.alertSelects(e)), userData.alertSelects(e))
           }
 
-          s.taskDataStore.updateGroupedTask(idOfTask, GroupedTask(
+          val task : GroupedTask = GroupedTask(
             description = userData.description,
             startDate = userData.startDate,
             endDate = userData.endDate,
@@ -596,7 +596,15 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             groupName = userData.selectGroupedTask,
             category = userData.category,
             alert = finalListOfAlert,
-            isActive = userData.isActive))
+            isActive = userData.isActive)
+
+          s.taskDataStore.updateGroupedTask(idOfTask, task)
+
+          if(finalListOfAlert != task.alert){
+            taskScheduler.deleteTask(idOfTask)
+            taskScheduler.setSlackBotMessageForGroupedTask(task)
+          }
+
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
         }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
       })
@@ -642,10 +650,10 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
         request.session.get("id").map { id =>
           var finalListOfAlert: List[(Long, String)] = List()
           for (e <- userData.alertNumbers.indices) {
-            finalListOfAlert = finalListOfAlert :+ (Duration(userData.alertNumbers(e).toLong, userData.alertSelects(e)).toMillis, userData.alertSelects(e))
+            finalListOfAlert = finalListOfAlert :+ (createDurationFromAlert(userData.alertNumbers(e).toLong, userData.alertSelects(e)), userData.alertSelects(e))
           }
 
-          s.taskDataStore.updateSinglePersonTask(idOfTask, SinglePersonTask(
+          val task : SinglePersonTask = SinglePersonTask(
             description = userData.description,
             startDate = userData.startDate,
             endDate = userData.endDate,
@@ -653,7 +661,14 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             employeeId = userData.selectSingleTask,
             category = userData.category,
             alert = finalListOfAlert,
-            isActive = userData.isActive))
+            isActive = userData.isActive)
+
+          s.taskDataStore.updateSinglePersonTask(idOfTask, task)
+
+          if(finalListOfAlert != task.alert){
+            taskScheduler.deleteTask(idOfTask)
+            taskScheduler.setSlackBotMessageForSingleTask(task)
+          }
 
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
         }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "you can't access this page"))
@@ -957,12 +972,30 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
   def goToUserGroups() = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
       listOfUserGroup <- s.userGroupDataStore.findEveryUserGroup()
-    } yield listOfUserGroup
+      listOfUsers <- s.userDataStore.findEveryActiveUser()
+    } yield (listOfUserGroup, listOfUsers)
 
     res.map { e =>
       request.session.get("status").map { status =>
         if (status == "Admin") {
-          Ok(views.html.userGroupsManagment(e))
+          Ok(views.html.userGroupsManagment(e._1, e._2))
+        } else {
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        }
+      }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
+    }
+  }
+
+  def goToUserGroupDetail(userGroupName: String) = Action.async { implicit request: Request[AnyContent] =>
+    val res = for {
+      listOfUserAlreadyInGroup <- s.userDataStore.findUsersByUserGroup(userGroupName)
+      listOfUsers <- s.userDataStore.findEveryActiveUser()
+    } yield (listOfUserAlreadyInGroup, listOfUsers)
+
+    res.map { e =>
+      request.session.get("status").map { status =>
+        if (status == "Admin") {
+          Ok(views.html.userGroupDetailAndManagment(userGroupName, e._1, e._2))
         } else {
           Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
         }
@@ -974,7 +1007,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     request.session.get("status").map { status =>
       if (status == "Admin") {
         s.removeUserGroup(name)
-        Redirect(routes.HomeController.goToUserGroups())
+        Redirect(routes.HomeController.goToUserGroups()).flashing("successDelete" -> "")
       } else {
         Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
       }
@@ -997,7 +1030,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
           },
           userData => {
             s.updateUserGroup(userData._id, userData.name)
-            Redirect(routes.HomeController.goToUserGroups())
+            Redirect(routes.HomeController.goToUserGroups()).flashing("successUpdate" -> "")
           }
         )
       } else {
@@ -1023,7 +1056,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             s.userGroupDataStore.insertUserGroup(
               UserGroup(name = userData.name)
             )
-            Redirect(routes.HomeController.goToUserGroups())
+            Redirect(routes.HomeController.goToUserGroups()).flashing("successAdd" -> "")
           }
         )
       } else {
@@ -1065,12 +1098,12 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
           },
           userData => {
             s.taskCategoryDataStore.findTaskCategoryByName(userData.name).flatMap { tC =>
-              tC.idOfCategoryParent.map { id =>
-                s.removeTaskCategory(id)
+              if (!tC.isHeader) {
+                s.removeTaskCategory(tC._id)
                 Future.successful(
                   Redirect(routes.HomeController.goToTaskCategory()).flashing("successDelete" -> "")
                 )
-              }.getOrElse {
+              } else {
                 s.taskCategoryDataStore.findHeaderTaskChildren(tC._id).flatMap { cList =>
                   cList.foreach { e =>
                     s.removeTaskCategory(e._id)
@@ -1129,7 +1162,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
                 TaskCategory(name = userData.name, isHeader = userData.isHeader)
               )
             }
-            Redirect(routes.HomeController.goToTaskCategory()).flashing("addCategorySuccessfully" -> "")
+            Redirect(routes.HomeController.goToTaskCategory()).flashing("successAdd" -> "")
           }
         )
       } else {
@@ -1175,4 +1208,103 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     )
   }
 
+  def addUserToUserGroup(userGroupName: String) = Action.async { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val userForm = Form(
+          mapping(
+            "addId" -> text
+          )(UserAddAndRemoveUserGroupForm.apply)(UserAddAndRemoveUserGroupForm.unapply)
+        )
+
+        userForm.bindFromRequest().fold(
+          formWithErrors => {
+            Future.successful(
+              Redirect(routes.HomeController.goToUserGroups()).flashing("failure" -> "someFailure")
+            )
+          },
+          userData => {
+            s.userDataStore.findUserById(userData.id).map { optUser =>
+              optUser.map { user =>
+                user.groupName.map { l =>
+                  if (!l.contains(userGroupName)) {
+                    s.userDataStore.addUserToUserGroup(user, userGroupName)
+                  }
+                  Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("successAdd" -> "")
+                }.getOrElse {
+                  s.userDataStore.addUserToUserGroup(user, userGroupName)
+                  Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("successAdd" -> "")
+                }
+              }.getOrElse {
+                Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("userNotFound" -> "")
+              }
+            }
+          }
+        )
+      } else {
+        Future.successful(
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        )
+      }
+    }.getOrElse(
+      Future.successful(
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      )
+    )
+  }
+
+  def removeUserFromUserGroup(userGroupName: String) = Action.async { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val userForm = Form(
+          mapping(
+            "deleteId" -> text
+          )(UserAddAndRemoveUserGroupForm.apply)(UserAddAndRemoveUserGroupForm.unapply)
+        )
+
+        userForm.bindFromRequest().fold(
+          formWithErrors => {
+            Future.successful(
+              Redirect(routes.HomeController.goToUserGroups()).flashing("failure" -> "someFailure")
+            )
+          },
+          userData => {
+            s.userDataStore.findUserById(userData.id).map { optUser =>
+              optUser.map { user =>
+                user.groupName.map { l =>
+                  if (l.contains(userGroupName)) {
+                    s.userDataStore.removeUserFromUserGroup(user._id, userGroupName)
+                  }
+                  Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("successdelete" -> "")
+                }.getOrElse {
+                  Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("successdelete" -> "")
+                }
+              }.getOrElse {
+                Redirect(routes.HomeController.goToUserGroupDetail(userGroupName)).flashing("userNotFound" -> "")
+              }
+            }
+          }
+        )
+      } else {
+        Future.successful(
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        )
+      }
+    }.getOrElse(
+      Future.successful(
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      )
+    )
+  }
+
+  private def createDurationFromAlert(alertNumber: Long, alertChoice: String): Long = {
+    alertChoice match {
+      case "minute" => Duration(alertNumber, alertChoice).toMillis
+      case "hour" => Duration(alertNumber, alertChoice).toMillis
+      case "day" => Duration(alertNumber, alertChoice).toMillis
+      case "week" => Duration(alertNumber * 7, "day").toMillis
+      case "month" => Duration(alertNumber * 30, "day").toMillis
+      case "year" => Duration(alertNumber * 365, "day").toMillis
+    }
+  }
 }
