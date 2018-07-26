@@ -5,6 +5,7 @@ version := "1.0-SNAPSHOT"
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 resolvers += Resolver.sonatypeRepo("snapshots")
+resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 routesGenerator := InjectedRoutesGenerator
 
 scalaVersion := "2.12.6"

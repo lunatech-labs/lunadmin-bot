@@ -3,7 +3,7 @@ import java.time.Clock
 
 import controllers.Starter
 import play.api.Configuration
-import services.{ApplicationTimer, AtomicCounter, Counter, TaskScheduler}
+import services.TaskScheduler
 import store.{TaskCategoryDataStore, TaskDataStore, UserDataStore, UserGroupDataStore}
 
 /**
@@ -23,9 +23,9 @@ class Module extends AbstractModule {
     bind(classOf[Clock]).toInstance(Clock.systemDefaultZone)
     // Ask Guice to create an instance of ApplicationTimer when the
     // application starts.
-    bind(classOf[ApplicationTimer]).asEagerSingleton()
-    // Set AtomicCounter as the implementation for Counter.
-    bind(classOf[Counter]).to(classOf[AtomicCounter])
+//    bind(classOf[ApplicationTimer]).asEagerSingleton()
+//    Set AtomicCounter as the implementation for Counter.
+//    bind(classOf[Counter]).to(classOf[AtomicCounter])
 
     bind(classOf[UserDataStore]).asEagerSingleton()
     bind(classOf[TaskDataStore]).asEagerSingleton()

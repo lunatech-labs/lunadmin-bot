@@ -56,12 +56,12 @@
                     @helper.CSRF.formField
                     <div class="form-group">
                         <label for="addName">Name</label>
-                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
+                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="New Name">
                         <br><label for="addIsHeader" >Is Top Level ?</label>
                         <input type="checkbox" onclick="disableAddSelect()" class="form-control-sm" id="addIsHeader" name="addIsHeader">
                         <br><label for="addIdOfParent">Category</label>
                         <select name="addIdOfParent" id="addIdOfParent">
-                            <option value="none" selected="selected">Aucun</option>
+                            <option value="none" selected="selected">None</option>
                             @for(header <- listCategory){
                                 @if(header._1 != ""){
                                     <option value="@header._1">@header._1</option>
@@ -107,7 +107,7 @@
                             }
                         }
                         </select>
-                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="Nouveau Nom">
+                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="New Name">
                         <button type="submit" class="btn btn-primary">Update</button>
                     </div>
                 </form>

@@ -44,8 +44,5 @@ POST        /updateTaskCategory                    controllers.HomeController.up
 POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
 POST        /paginationDT                          controllers.HomeController.paginationDisplayTask
 
-GET         /count                                 controllers.CountController.count
-GET         /message                               controllers.AsyncController.message
-
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                          controllers.Assets.versioned(file)

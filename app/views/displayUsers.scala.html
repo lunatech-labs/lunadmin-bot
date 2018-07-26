@@ -109,10 +109,17 @@
                     }
                 }
                 <li class="page-item">
-                    <a class="page-link" href="@routes.HomeController.displayUser(page+1,pageSize)" aria-label="Next">
-                        <span aria-hidden="true">&raquo;</span>
-                        <span class="sr-only">Next</span>
-                    </a>
+                    @if(page < numberOfPage){
+                        <a class="page-link" href="@routes.HomeController.displayUser(page+1,pageSize)" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                            <span class="sr-only">Next</span>
+                        </a>
+                    }else{
+                        <a class="page-link" href="" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                            <span class="sr-only">Next</span>
+                        </a>
+                    }
                 </li>
             </ul>
         </nav>
