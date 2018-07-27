@@ -38,7 +38,8 @@ class TaskDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi, conf: Conf
   }
 
   def findNumberOfPage(pageSize: Int): Future[Int] = {
-    findAllDescriptionForCount().map(e => Math.round(e.size / pageSize))
+    findAllDescriptionForCount().map(e =>
+      Math.ceil(e.size / pageSize.toDouble).toInt)
   }
 
   private def findAllTaskOfAUserForCount(idOfUser: String, groupName: List[String]): Future[List[TaskDescription]] = {

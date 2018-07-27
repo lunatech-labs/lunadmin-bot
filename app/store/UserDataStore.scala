@@ -2,7 +2,7 @@ package store
 
 import javax.inject.{Inject, Singleton}
 import models._
-import play.api.Configuration
+import play.api.{Configuration, Logger}
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.{Cursor, QueryOpts}
 import reactivemongo.bson.BSONDocument
@@ -92,7 +92,8 @@ class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi, taskDataSt
   }
 
   def findNumberOfPage(pageSize: Int): Future[Int] = {
-    findEveryUserDescription().map(e => Math.round(e.size / pageSize))
+    findEveryUserDescription().map{e =>
+      Math.ceil(e.size / pageSize.toDouble).toInt}
   }
 
   def findUserDescriptionByUserGroup(userGroupName: String): Future[List[UserDescription]] = {

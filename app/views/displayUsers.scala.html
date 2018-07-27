@@ -106,7 +106,7 @@
                             <li class="page-item"><a class="page-link" href="@routes.HomeController.displayUser(p,pageSize)">@(p+1)</a></li>
                         }
                     }else{
-                        @for(p <- page until numberOfPage+1){
+                        @for(p <- page until numberOfPage){
                             <li class="page-item"><a class="page-link" href="@routes.HomeController.displayUser(p,pageSize)">@(p+1)</a></li>
                         }
                     }
@@ -116,7 +116,7 @@
                             <li class="page-item"><a class="page-link" href="@routes.HomeController.displayUser(p,pageSize)">@(p+1)</a></li>
                         }
                     }else{
-                        @for(p <- 0 until numberOfPage+1){
+                        @for(p <- 0 until numberOfPage){
                             <li class="page-item"><a class="page-link" href="@routes.HomeController.displayUser(p,pageSize)">@(p+1)</a></li>
                         }
                     }
