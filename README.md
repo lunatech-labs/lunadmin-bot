@@ -47,10 +47,8 @@ Unique tasks are scheduled using Akka-actorSystem to delayed the send of a messa
 \
 Recurrent tasks are scheduled using Akka-Quartz-Scheduler which used cron expression to schedule a task based on a specific time ( ex : each monday at 12 AM)
 
-
-
-Make sure the email of the user you are assigning the task to is valid on slack.
-Be careful with the extension of the email (.com/.fr)
+Make sure the email of the user you are assigning the task to is valid on slack. \
+Be careful with the extension of the email (.com/.fr) 
 
 ## Author
 
