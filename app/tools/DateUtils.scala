@@ -1,5 +1,6 @@
 package tools
 
+import java.text.SimpleDateFormat
 import java.time.format.DateTimeFormatter
 import java.util.Date
 
@@ -13,5 +14,5 @@ object DateUtils {
   val dateTimeUTC = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss'Z'")
   val dateTimeLocal: Formatter[Date] = Formats.dateFormat("yyyy-MM-dd'T'HH:mm")
   val dateLocal: Formatter[Date] = Formats.dateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-
+  val time  = new SimpleDateFormat("HH:mm")
 }

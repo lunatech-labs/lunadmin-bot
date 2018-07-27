@@ -2,11 +2,11 @@ package models
 
 import play.api.libs.json.Json
 
-case class TaskCategoryUpdateForm (
+case class TaskCategoryUpdateNameForm(
                                   oldName : String,
                                   newName : String
                                   )
 
-object TaskCategoryUpdateForm{
-  implicit val fmt = Json.format[TaskCategoryUpdateForm]
+object TaskCategoryUpdateNameForm{
+  implicit val fmt = Json.format[TaskCategoryUpdateNameForm]
 }

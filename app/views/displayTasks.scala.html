@@ -2,7 +2,7 @@
 @import tools.DateUtils
 @import java.time.ZoneId
 
-@(list : List[TaskDescription],localZoneTimeId : String, page : Int, pageSize : Int, numberOfPage : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+@(list : List[TaskDescription], listOfCategory : List[TaskCategory], localZoneTimeId : String, page : Int, pageSize : Int, numberOfPage : Int)(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -43,22 +43,34 @@
         <table class="table table-hover table-bordered table-striped small">
             <thead>
                 <tr>
-                    <th>Id</th>
                     <th>Description</th>
                     <th>StartDate</th>
                     <th>Category</th>
+                    <th>Status</th>
                     <th>Type</th>
                 </tr>
             </thead>
             <tbody id="myTable">
             @for(task <- list) {
                 <tr>
-                    <td>@task._id</td>
                     <td>@task.description</td>
                     <td>@task.startDate.withZoneSameInstant(ZoneId.of(localZoneTimeId)).format(DateUtils.dateTimeFormatterLocal)</td>
-                    <td>@task.category</td>
+                    <td>
+                    @for(tC <- listOfCategory.filter(e => e.name == task.category)){
+                        @if(tC.link.isDefined){
+                            <a href="@tC.link.getOrElse("")">@task.category</a>
+                        }else{
+                            @task.category
+                        }
+                    }
+                    </td>
+                    <td>@task.status</td>
                     <td>@task.getType()</td>
-                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedTask(task._id)"> Details</a> &nbsp <a href="@routes.HomeController.deleteTask(task._id,task.`type`.toString,page,pageSize)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task : @{task._id} ');">delete</a></td>
+                    <td>
+                        <a class="btn btn-primary btn-sm text-white" href="@routes.HomeController.displayFullDetailedTask(task._id)"><i class="fas fa-cog"></i></a>
+                        &nbsp
+                        <a href="@routes.HomeController.deleteTask(task._id,task.`type`.toString,page,pageSize)" class="btn btn-danger btn-sm" onclick="return confirm('Delete Task : @{task.description} ');"><i class="far fa-trash-alt"></i></a>
+                    </td>
                 </tr>
             }
             </tbody>

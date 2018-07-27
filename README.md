@@ -8,18 +8,44 @@ LunAdmin comes from the need to centralize various tasks that were dispersed acr
 
 ## What techs do we use.
 
-LunAdmin is based on the play framework and uses Mongodb to store and retrieve data via ReactivMongo. It is using Http Requests to communicate. 
+LunAdmin is based on the play framework and uses Mongodb to store and retrieve data via ReactivMongo. \
+It is using Http Requests to communicate. 
 
-## Implemented Features
+## What does it do
 
-Listing/update/delete/add of Task / Users   ( Admin Mode Only )
-Authentification / user rights
+With LunAdmin you can schedule tasks that will send a message on slack to warn the people that are concerned \
+You can manage users and tasks as well (delete/add/update) \
+Updating a date will update the scheduled messages 
+
+## Running the project
+
+This github only contains the source code. \
+first you need a mongo database which reference should be in application.conf under the label "mongodb.uri" \
+In that database you need 4 collections : \
+-user \
+-userGroup \
+-task \
+-taskCategory
+
+Once you have your database then you just need to launch the application.
+
+## Getting Started
 
 A special test account is created on launch of the service to test the Admin part\
 mail : LunAdmin@gmail.com \
 pass : admin
 
 For the user part with low rights, just register on the Home page
+
+## Scheduling a task
+
+Once your logged in on an user account all you need to do is go on the "Task" tab and click on the plus button.
+
+There are 2 types of tasks : Unique and Recurrent(daily,weekly,monthly or yearly) \
+\
+Unique tasks are scheduled using Akka-actorSystem to delayed the send of a message based on the current time and the Start Date of the task \
+\
+Recurrent tasks are scheduled using Akka-Quartz-Scheduler which used cron expression to schedule a task based on a specific time ( ex : each monday at 12 AM)
 
 ## Author
 

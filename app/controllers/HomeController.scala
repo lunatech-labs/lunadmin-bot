@@ -141,6 +141,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     val res = for {
       allTaskForAdmin <- s.taskDataStore.findAllTaskDescription(page, pageSize)
       numberOfPageForAdmin <- s.taskDataStore.findNumberOfPage(pageSize)
+      listOfTaskCategory <- s.taskCategoryDataStore.findAllTaskCategory()
       allTaskForUser <- {
         val groupName = s.userDataStore.findUserById(idOfUser).map(e => e.flatMap(u => u.groupName))
         groupName.flatMap(e => s.taskDataStore.findTaskOfAUser(idOfUser, e.getOrElse(List()), page, pageSize))
@@ -149,14 +150,14 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
         val groupName = s.userDataStore.findUserById(idOfUser).map(e => e.flatMap(u => u.groupName))
         groupName.flatMap(e => s.taskDataStore.findNumberOfPageOfAUser(idOfUser, e.getOrElse(List()), pageSize))
       }
-    } yield (allTaskForAdmin, numberOfPageForAdmin, allTaskForUser, numberOfPageForUser)
+    } yield (allTaskForAdmin, numberOfPageForAdmin, allTaskForUser, numberOfPageForUser, listOfTaskCategory)
 
     res.map { e =>
       request.session.get("status").map { status =>
         if (status == "Admin") {
-          Ok(views.html.displayTasks(e._1, timeZone, page, pageSize, e._2))
+          Ok(views.html.displayTasks(e._1, e._5, timeZone, page, pageSize, e._2))
         } else {
-          Ok(views.html.displayTasks(e._3, timeZone, page, pageSize, e._4))
+          Ok(views.html.displayTasks(e._3, e._5, timeZone, page, pageSize, e._4))
         }
       }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
     }
@@ -165,7 +166,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
   def deleteTask(idTask: String, taskType: String, page: Int, pageSize: Int) = Action { implicit request: Request[AnyContent] =>
     request.session.get("status").map { status =>
       if (status == "Admin") {
-        s.taskDataStore.deleteTask(idTask, taskType)
+        s.taskDataStore.setTaskToInactive(idTask)
         taskScheduler.deleteTask(idTask)
         Redirect(routes.HomeController.displayTasks(page, pageSize)).flashing("taskDeleted" -> "The Task Has Been deleted !")
       } else {
@@ -192,14 +193,14 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }
   }
 
-  private def orderListOfCategory(listOfTaskCategory: List[TaskCategory]): List[(String, List[String])] = {
-    var res: List[(String, List[String])] = List()
+  private def orderListOfCategory(listOfTaskCategory: List[TaskCategory]): List[(String, List[TaskCategory])] = {
+    var res: List[(String, List[TaskCategory])] = List()
     val listOfHeader = listOfTaskCategory.filter(p => p.isHeader)
     listOfHeader.foreach { f =>
-      res = res :+ (f.name, listOfTaskCategory.filter(p => p.idOfCategoryParent.isDefined && p.idOfCategoryParent.get == f._id).map(e => e.name))
+      res = res :+ (f.name, listOfTaskCategory.filter(p => p.idOfCategoryParent.isDefined && p.idOfCategoryParent.get == f._id))
     }
     val neutralTaskCategory = listOfTaskCategory.filter(p => p.idOfCategoryParent.isEmpty && !p.isHeader)
-    res = res :+ ("", neutralTaskCategory.map(p => p.name))
+    res = res :+ ("", neutralTaskCategory)
 
     res
   }
@@ -367,7 +368,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
 
     val userForm = Form(
       mapping(
-        "mail" -> text,
+        "mail" -> email,
         "password" -> text,
         "firstName" -> text,
         "lastName" -> text,
@@ -587,7 +588,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             finalListOfAlert = finalListOfAlert :+ (createDurationFromAlert(userData.alertNumbers(e).toLong, userData.alertSelects(e)), userData.alertSelects(e))
           }
 
-          val task : GroupedTask = GroupedTask(
+          val task: GroupedTask = GroupedTask(
             description = userData.description,
             startDate = userData.startDate,
             endDate = userData.endDate,
@@ -597,7 +598,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             alert = finalListOfAlert,
             isActive = userData.isActive)
 
-          taskScheduler.updateGroupedTask(idOfTask,task)
+          taskScheduler.updateGroupedTask(idOfTask, task)
           s.taskDataStore.updateGroupedTask(idOfTask, task)
 
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
@@ -648,7 +649,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             finalListOfAlert = finalListOfAlert :+ (createDurationFromAlert(userData.alertNumbers(e).toLong, userData.alertSelects(e)), userData.alertSelects(e))
           }
 
-          val task : SinglePersonTask = SinglePersonTask(
+          val task: SinglePersonTask = SinglePersonTask(
             description = userData.description,
             startDate = userData.startDate,
             endDate = userData.endDate,
@@ -658,7 +659,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
             alert = finalListOfAlert,
             isActive = userData.isActive)
 
-          taskScheduler.updateSingleTask(idOfTask,task)
+          taskScheduler.updateSingleTask(idOfTask, task)
           s.taskDataStore.updateSinglePersonTask(idOfTask, task)
 
           Redirect(routes.HomeController.displayTasks(0, 10)).flashing("update" -> "someUpdate")
@@ -666,7 +667,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
       })
   }
 
-  def updateUser(idOfUser: String) : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def updateUser(idOfUser: String): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     val userForm = Form(
       mapping(
         "mail" -> text,
@@ -817,7 +818,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }
   }
 
-  def updateProfile() : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def updateProfile(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     val userForm = Form(
       mapping(
         "mail" -> text,
@@ -960,7 +961,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }
   }
 
-  def goToUserGroups() : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def goToUserGroups(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
       listOfUserGroup <- s.userGroupDataStore.findEveryUserGroup()
       listOfUsers <- s.userDataStore.findEveryActiveUser()
@@ -977,7 +978,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }
   }
 
-  def goToUserGroupDetail(userGroupName: String) : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def goToUserGroupDetail(userGroupName: String): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
       listOfUserAlreadyInGroup <- s.userDataStore.findUsersByUserGroup(userGroupName)
       listOfUsers <- s.userDataStore.findEveryActiveUser()
@@ -1011,7 +1012,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
         val userForm = Form(
           mapping(
             "updateId" -> text,
-            "updateName" -> text
+            "updateName" -> nonEmptyText
           )(UserGroup.apply)(UserGroup.unapply)
         )
 
@@ -1035,7 +1036,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
       if (status == "Admin") {
         val userForm = Form(
           mapping(
-            "addName" -> text
+            "addName" -> nonEmptyText
           )(UserGroupAddForm.apply)(UserGroupAddForm.unapply)
         )
 
@@ -1056,7 +1057,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
   }
 
-  def goToTaskCategory() : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def goToTaskCategory(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     val res = for {
       listOfTaskCategory <- s.taskCategoryDataStore.findAllTaskCategory()
     } yield listOfTaskCategory
@@ -1072,7 +1073,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }
   }
 
-  def deleteTaskCategory() : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def deleteTaskCategory(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     request.session.get("status").map { status =>
       if (status == "Admin") {
         val taskForm = Form(
@@ -1124,7 +1125,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
       if (status == "Admin") {
         val taskForm = Form(
           mapping(
-            "addName" -> text,
+            "addName" -> nonEmptyText,
             "addIsHeader" -> boolean,
             "addIdOfParent" -> optional(text)
           )(TaskCategoryAddForm.apply)(TaskCategoryAddForm.unapply)
@@ -1162,14 +1163,14 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     }.getOrElse(Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page"))
   }
 
-  def updateTaskCategory() : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def updateTaskCategoryName(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     request.session.get("status").map { status =>
       if (status == "Admin") {
         val taskForm = Form(
           mapping(
-            "updateSelect" -> text,
-            "updateName" -> text
-          )(TaskCategoryUpdateForm.apply)(TaskCategoryUpdateForm.unapply)
+            "updateSelectName" -> text,
+            "updateName" -> nonEmptyText
+          )(TaskCategoryUpdateNameForm.apply)(TaskCategoryUpdateNameForm.unapply)
         )
 
         taskForm.bindFromRequest().fold(
@@ -1199,7 +1200,44 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     )
   }
 
-  def addUserToUserGroup(userGroupName: String) : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def updateTaskCategoryLink(): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+    request.session.get("status").map { status =>
+      if (status == "Admin") {
+        val taskForm = Form(
+          mapping(
+            "updateSelectLink" -> text,
+            "updateLink" -> optional(nonEmptyText)
+          )(TaskCategoryUpdateLinkForm.apply)(TaskCategoryUpdateLinkForm.unapply)
+        )
+
+        taskForm.bindFromRequest().fold(
+          formWithErrors => {
+            Future.successful(
+              Redirect(routes.HomeController.goToTaskCategory()).flashing("failure" -> "someFailure")
+            )
+          },
+          userData => {
+            s.taskCategoryDataStore.findTaskCategoryByName(userData.name).map { tC =>
+              s.taskCategoryDataStore.updateTaskCategory(tC._id,
+                TaskCategory(name = tC.name, idOfCategoryParent = tC.idOfCategoryParent, isHeader = tC.isHeader, link = userData.newLink)
+              )
+              Redirect(routes.HomeController.goToTaskCategory()).flashing("successUpdate" -> "")
+            }
+          }
+        )
+      } else {
+        Future.successful(
+          Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+        )
+      }
+    }.getOrElse(
+      Future.successful(
+        Redirect(routes.HomeController.index()).flashing("notAdmin" -> "You can't access this page")
+      )
+    )
+  }
+
+  def addUserToUserGroup(userGroupName: String): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     request.session.get("status").map { status =>
       if (status == "Admin") {
         val userForm = Form(
@@ -1244,7 +1282,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
     )
   }
 
-  def removeUserFromUserGroup(userGroupName: String) : Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
+  def removeUserFromUserGroup(userGroupName: String): Action[AnyContent] = Action.async { implicit request: Request[AnyContent] =>
     request.session.get("status").map { status =>
       if (status == "Admin") {
         val userForm = Form(

@@ -1,6 +1,6 @@
 @import java.time.ZonedDateTime
 @import tools.DateUtils
-@(listCategory : List[(String,List[String])], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
+@(listCategory : List[(String,List[TaskCategory])], listUser : List[UserDescription], listUserGroup : List[UserGroup], listStatus : List[String] )(implicit assetsFinder: AssetsFinder, request: RequestHeader,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -37,12 +37,12 @@
                 @if(list._1 != ""){
                     <optgroup label="@list._1">
                     @for(taskCategory <- list._2){
-                        <option>@taskCategory</option>
+                        <option>@taskCategory.name</option>
                     }
                     </optgroup>
                 }else{
                     @for(taskCategory <- list._2){
-                        <option>@taskCategory</option>
+                        <option>@taskCategory.name</option>
                     }
                 }
             }

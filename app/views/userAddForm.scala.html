@@ -27,7 +27,8 @@
                     <br/>
         }
     }
-
+<div class="row">
+    <div class="col-12">
     <form method="post" enctype="multipart/form-data" action="@routes.HomeController.addUser()">
         @helper.CSRF.formField
         <div class="form-group">
@@ -98,4 +99,8 @@
 
         <button type="submit" class="btn btn-primary">Add a User</button>
     </form>
+</div>
+
+</div>
+
 }

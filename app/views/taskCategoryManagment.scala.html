@@ -1,5 +1,5 @@
 @import scala.concurrent.ExecutionContext
-@(listCategory : List[(String,List[String])])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
+@(listCategory : List[(String,List[TaskCategory])])(implicit assetsFinder: AssetsFinder,request: RequestHeader,ec : ExecutionContext,session: play.api.mvc.Session,flash: Flash)
 
 @main("LunAdmin", assetsFinder,session) {
 
@@ -38,12 +38,16 @@
                     @if(list._1 != ""){
                         <optgroup label="@list._1">
                         @for(taskCategory <- list._2){
-                            <option>@taskCategory</option>
+                            <option>@taskCategory.name
+                                @if(taskCategory.link.isDefined){
+                                 (@taskCategory.link.getOrElse(""))
+                                }
+                                </option>
                         }
                         </optgroup>
                     }else{
                         @for(taskCategory <- list._2){
-                            <option>@taskCategory</option>
+                            <option>@taskCategory.name</option>
                         }
                     }
                 }
@@ -56,7 +60,7 @@
                     @helper.CSRF.formField
                     <div class="form-group">
                         <label for="addName">Name</label>
-                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="New Name">
+                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="New Name" required>
                         <br><label for="addIsHeader" >Is Top Level ?</label>
                         <input type="checkbox" onclick="disableAddSelect()" class="form-control-sm" id="addIsHeader" name="addIsHeader">
                         <br><label for="addIdOfParent">Category</label>
@@ -68,7 +72,7 @@
                                 }
                             }
                         </select>
-                        <button type="submit" class="btn btn-primary">Add</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i></button>
                     </div>
                 </form>
 
@@ -83,32 +87,48 @@
                             }
 
                             @for(tC <- tCWithHeader._2 ){
-                                <option value="@tC">@tC</option>
+                                <option value="@tC.name">@tC.name</option>
                             }
                         }
                         </select>
-                        <button type="submit" class="btn btn-primary">Delete</button>
+                        <button type="submit" class="btn btn-primary"><i class="far fa-trash-alt"></i></button>
                         <small class="form-text text-muted">Removing a Header will remove all his children.</small>
                     </div>
                 </form>
                 <br>
 
-                <form method="post" action="@routes.HomeController.updateTaskCategory()">
+                <form method="post" action="@routes.HomeController.updateTaskCategoryName()">
                     @helper.CSRF.formField
                     <div class="form-group">
-                        <select name="updateSelect">
+                        <select name="updateSelectName">
                         @for(tCWithHeader <- listCategory){
                             @if(tCWithHeader._1 != ""){
                                 <option value="@tCWithHeader._1">H - @tCWithHeader._1</option>
                             }
-
                             @for(tC <- tCWithHeader._2 ){
-                                <option value="@tC">@tC</option>
+                                <option value="@tC.name">@tC.name</option>
                             }
                         }
                         </select>
-                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="New Name">
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="New Name" >
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-wrench"></i></button>
+                        <small class="form-text text-muted">Update the name of a category.</small>
+                    </div>
+                </form>
+
+                <form method="post" action="@routes.HomeController.updateTaskCategoryLink()">
+                    @helper.CSRF.formField
+                    <div class="form-group">
+                        <select name="updateSelectLink">
+                        @for(tCWithHeader <- listCategory){
+                            @for(tC <- tCWithHeader._2 ){
+                                <option value="@tC.name">@tC.name</option>
+                            }
+                        }
+                        </select>
+                        <input type="text" class="form-control-sm" id="updateLink" name="updateLink" placeholder="New Link (optional)">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-wrench"></i></button>
+                        <small class="form-text text-muted">Update the link of a category.</small>
                     </div>
                 </form>
             </div>
@@ -128,5 +148,7 @@
                 select.setAttribute("value","false");
             }
         }
+
+        $('#updateLink').tooltip({'trigger':'focus', 'title': 'fill the input = add/update \n blank input = remove link'});
     </script>
 }

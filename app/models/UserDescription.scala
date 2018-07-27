@@ -7,7 +7,8 @@ case class UserDescription (
                              _id : String = BSONObjectID.generate().stringify,
                              firstName : String,
                              lastName : String,
-                             mail : String
+                             mail : String,
+                             groupName : Option[List[String]] = None
                            )
 
 object UserDescription {

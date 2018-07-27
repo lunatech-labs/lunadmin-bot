@@ -60,8 +60,8 @@
                              finalStringOfUsers.dropRight(1)
                             }
                         </td>
-                        <td><a href="@routes.HomeController.goToUserGroupDetail(uG.name)" class="btn btn-primary text-white btn-sm" >Manage</a></td>
-                        <td><a onclick="return confirm('Delete Group : @uG.name ');" href="@routes.HomeController.deleteUserGroup(uG.name)" class="btn btn-danger btn-sm" >delete</a></td>
+                        <td><a href="@routes.HomeController.goToUserGroupDetail(uG.name)" class="btn btn-primary text-white btn-sm" ><i class="fas fa-cog"></i></a></td>
+                        <td><a onclick="return confirm('Delete Group : @uG.name ');" href="@routes.HomeController.deleteUserGroup(uG.name)" class="btn btn-danger btn-sm" ><i class="far fa-trash-alt"></i></a></td>
                     </tr>
                 }
                 </tbody>
@@ -73,8 +73,8 @@
                     <div class="form-group">
                         <small class="form-text text-muted">Add a new group.</small>
                         <label for="addName">Name</label>
-                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="Lunatech - School">
-                        <button type="submit" class="btn btn-primary">Add</button>
+                        <input type="text" class="form-control-sm" id="addName" name="addName" placeholder="New Name" required>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle"></i></button>
                     </div>
                 </form>
 
@@ -89,8 +89,8 @@
                                 <option value="@uG._id">@uG.name</option>
                             }
                         </select>
-                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="New Name">
-                        <button type="submit" class="btn btn-primary">Update</button>
+                        <input type="text" class="form-control-sm" id="updateName" name="updateName" placeholder="New Name" required>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-wrench"></i></button>
                     </div>
                 </form>
             </div>

@@ -11,6 +11,7 @@ case class TaskDescription (
                            var description : String,
                            startDate : ZonedDateTime,
                            var category : String,
+                           status : String,
                            `type`: TaskType
                            ){
   def getType() : String = `type`.toString

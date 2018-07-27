@@ -7,7 +7,8 @@ case class TaskCategory (
                           _id : String = BSONObjectID.generate().stringify ,
                           name : String,
                           idOfCategoryParent : Option[String] = None,
-                          isHeader : Boolean
+                          isHeader : Boolean,
+                          link : Option[String] = None
 )
 
 object TaskCategory {

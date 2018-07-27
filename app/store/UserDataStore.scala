@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.{Json, _}
 
 @Singleton
-class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi,taskDataStore: TaskDataStore ,conf :Configuration)(implicit ec: ExecutionContext) {
+class UserDataStore @Inject()(val reactiveMongoApi: ReactiveMongoApi, taskDataStore: TaskDataStore, conf: Configuration)(implicit ec: ExecutionContext) {
   private val userCollection = reactiveMongoApi.database.map(_.collection[JSONCollection]("user"))
 
   import reactivemongo.play.json.ImplicitBSONHandlers._

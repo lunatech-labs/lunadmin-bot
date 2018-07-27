@@ -39,10 +39,12 @@ GET         /goToDetailUserGroup                   controllers.HomeController.go
 GET         /goToTaskCategory                      controllers.HomeController.goToTaskCategory
 POST        /deleteTaskCategory                    controllers.HomeController.deleteTaskCategory
 POST        /addTaskCategory                       controllers.HomeController.addTaskCategory
-POST        /updateTaskCategory                    controllers.HomeController.updateTaskCategory
+POST        /updateTaskCategoryName                controllers.HomeController.updateTaskCategoryName
+POST        /updateTaskCategoryLink                controllers.HomeController.updateTaskCategoryLink
 
 POST        /paginationDU                          controllers.HomeController.paginationDisplayUser
 POST        /paginationDT                          controllers.HomeController.paginationDisplayTask
+
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                          controllers.Assets.versioned(file)

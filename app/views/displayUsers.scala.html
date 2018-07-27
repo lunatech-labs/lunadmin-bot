@@ -52,20 +52,33 @@
         <table class="table table-hover table-bordered table-striped small">
             <thead>
                 <tr>
-                    <th>Id</th>
                     <th>First Name</th>
                     <th>Last Name</th>
                     <th>Mail</th>
+                    <th>Group</th>
                 </tr>
             </thead>
             <tbody id="myTable">
             @for(user <- list) {
                 <tr>
-                    <td>@user._id</td>
                     <td>@user.firstName</td>
                     <td>@user.lastName</td>
                     <td>@user.mail</td>
-                    <td><a class="btn btn-success btn-sm text-white" href="@routes.HomeController.displayFullDetailedUser(user._id)"> Details</a> &nbsp <a onclick="return confirm('Delete User : @{user.firstName + " " + user.lastName} ');" href="@routes.HomeController.deleteUser(user._id,page,pageSize)" class="btn btn-danger btn-sm" >delete</a></td>
+                    <td style="max-width: 250px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;'">
+                    @{
+                        user.groupName.map{ l =>
+                          var finalStringOfGroup = ""
+                          for(group <- l){
+                              finalStringOfGroup = finalStringOfGroup + s"$group, "
+                          }
+                          finalStringOfGroup.dropRight(2)
+                        }
+                    }
+                    </td>
+                    <td><a class="btn btn-primary btn-sm text-white" href="@routes.HomeController.displayFullDetailedUser(user._id)"><i class="fas fa-user-cog"></i></a>
+                        &nbsp
+                        <a onclick="return confirm('Delete User : @{user.firstName + " " + user.lastName} ');" href="@routes.HomeController.deleteUser(user._id,page,pageSize)" class="btn btn-danger btn-sm" ><i class="far fa-trash-alt"></i></a>
+                    </td>
                 </tr>
             }
             </tbody>
