@@ -711,7 +711,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
                   var picturePath: Option[String] = None
                   var finalListOfPapers: List[(String, String)] = List()
 
-                  s.userDataStore.findUserById(id).map { optUser =>
+                  s.userDataStore.findUserById(idOfUser).map { optUser =>
                     optUser.foreach { user =>
 
                       picturePath = user.picture
