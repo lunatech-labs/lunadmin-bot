@@ -874,7 +874,7 @@ class HomeController @Inject()(s: Starter, conf: Configuration, taskScheduler: T
 
                       var listOfPapers: List[(String, String)] = List()
                       papers.map { paper =>
-                        s"$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
+                        s"$localAssetDirectory$localStorageDirectory/$id".toFile.createIfNotExists(asDirectory = true, createParents = true)
                         val filePath: String = s"$localStorageDirectory/$id/${paper.filename}"
                         listOfPapers = listOfPapers :+ (paper.key.drop(5), filePath)
                         paper.ref.moveTo(Paths.get(localAssetDirectory + filePath), replace = true)
