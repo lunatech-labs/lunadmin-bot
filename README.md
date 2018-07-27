@@ -20,8 +20,8 @@ Updating a date will update the scheduled messages
 ## Running the project
 
 This github only contains the source code. \
-first you need a mongo database which reference should be in application.conf under the label "mongodb.uri" \
-In that database you need 4 collections : \
+First you need a mongo database which reference should be in application.conf under the label "mongodb.uri" \
+In that database there should be 4 collections : \
 -user \
 -userGroup \
 -task \
@@ -46,6 +46,11 @@ There are 2 types of tasks : Unique and Recurrent(daily,weekly,monthly or yearly
 Unique tasks are scheduled using Akka-actorSystem to delayed the send of a message based on the current time and the Start Date of the task \
 \
 Recurrent tasks are scheduled using Akka-Quartz-Scheduler which used cron expression to schedule a task based on a specific time ( ex : each monday at 12 AM)
+
+
+
+Make sure the email of the user you are assigning the task to is valid on slack.
+Be careful with the extension of the email (.com/.fr)
 
 ## Author
 
